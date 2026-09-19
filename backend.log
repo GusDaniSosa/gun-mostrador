@@ -1,0 +1,707 @@
+
+==================================================
+🚀 INICIANDO SERVIDOR GUN
+✅ BD Conectada. Productos: 18633
+==================================================
+
+ * Serving Flask app 'run'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.88.250:5000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 136-930-800
+192.168.88.254 - - [16/Sep/2026 14:03:26] "GET /api/productos?q=t HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:03:26] "GET /api/productos?q=ta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:03:27] "GET /api/productos?q=tar HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:03:36] "OPTIONS /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:03:37] "POST /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:20] "GET /api/productos?q=t HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:21] "GET /api/productos?q=ts HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:22] "GET /api/productos?q=t HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:23] "GET /api/productos?q=ts HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:24] "GET /api/productos?q=tsr HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:24] "GET /api/productos?q=tsra HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:25] "GET /api/productos?q=tsrag HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:26] "GET /api/productos?q=tsrago HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:28] "GET /api/productos?q=tsrag HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:28] "GET /api/productos?q=tsra HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:29] "GET /api/productos?q=tsr HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:29] "GET /api/productos?q=ts HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:29] "GET /api/productos?q=tsa HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:29] "GET /api/productos?q=ts HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:30] "GET /api/productos?q=t HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:30] "GET /api/productos?q=ta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:31] "GET /api/productos?q=tar HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:32] "GET /api/productos?q=taru HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:35] "GET /api/productos?q=taruh HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:36] "GET /api/productos?q=taruhg HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:36] "GET /api/productos?q=taruhgo HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:37] "GET /api/productos?q=TARUGO HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:48] "OPTIONS /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:04:49] "POST /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:19:08] "GET /api/productos?q=t HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:19:08] "GET /api/productos?q=ta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:19:09] "GET /api/productos?q=tar HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:19:09] "GET /api/productos?q=taru HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:19:09] "GET /api/productos?q=tarug HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:19:09] "GET /api/productos?q=tarugo HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:19:37] "OPTIONS /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:19:38] "POST /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:07] "GET /api/productos?q=t HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:07] "GET /api/productos?q=ta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:08] "GET /api/productos?q=tar HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:08] "GET /api/productos?q=taru HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:08] "GET /api/productos?q=tarug HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:08] "GET /api/productos?q=tarugo HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:20] "OPTIONS /api/venta HTTP/1.1" 200 -
+
+==================================================
+🚀 INICIANDO SERVIDOR GUN
+✅ BD Conectada. Productos: 18633
+==================================================
+
+[API] Buscando: 't'
+[API] Encontrados 30 productos.
+[API] Buscando: 'ta'
+[API] Encontrados 30 productos.
+[API] Buscando: 'tar'
+[API] Encontrados 30 productos.
+
+🚀 ENVIANDO A DUX PRODUCCIÓN (COMPROBANTE_VENTA):
+{
+  "id_empresa": 5397,
+  "id_sucursal": 1,
+  "id_cliente": 14020175,
+  "descuento_global": 0.0,
+  "id_personal": 6257259,
+  "productos": [
+    {
+      "cod_item": "DR17801",
+      "ctd": 1.0,
+      "precio_uni": 1.0,
+      "porc_iva": 21.0,
+      "porc_desc": 0.0
+    }
+  ],
+  "id_deposito": 10646,
+  "nro_pto_vta": 6,
+  "id_vendedor": 6257259,
+  "id_condicion_pago": 9826,
+  "tipo_comp": "COMPROBANTE_VENTA",
+  "letra_comp": "X",
+  "cobro": {
+    "fecha_cobro": "2026-09-16",
+    "total": 1.0,
+    "id_caja": 19990,
+    "id_moneda": 1,
+    "cotiza_moneda": 1.0,
+    "detalle": [
+      {
+        "tipo_valor": "EFECTIVO",
+        "monto": 1.0
+      }
+    ]
+  }
+}
+📥 RESPUESTA DE DUX (Status 201):
+{
+  "datos": {
+    "id_comp_venta": 114265757,
+    "id_empresa": 5397,
+    "id_sucursal_empresa": 1,
+    "sucursal": "Carlos Janik 761 - MOSTRADOR",
+    "id_cliente": 14020175,
+    "tipo_comp": "COMPROBANTE_VENTA",
+    "letra_comp": "X",
+    "nro_pto_vta": "6",
+    "nro_comp": 29118,
+    "comprobante": "X-00006-00029118",
+    "fecha": "2026-09-16",
+    "fecha_vencimiento": null,
+    "monto_gravado": 0.82644628,
+    "monto_exento": 0.0,
+    "monto_iva": 0.17355372,
+    "monto_desc": 0.0,
+    "total": 1.0,
+    "nro_cae_cai": null,
+    "fecha_vencimiento_cae_cai": null,
+    "tipo_validacion_afip": null,
+    "estado_facturacion": "EMITIDA",
+    "anulada": false,
+    "fecha_anula": null,
+    "fecha_registro": "2026-09-16",
+    "detalles": null
+  },
+  "id_solicitud": "req_5ffa4d397d11"
+}
+[API] Buscando: 't'
+[API] Encontrados 30 productos.
+[API] Buscando: 'ts'
+[API] Encontrados 30 productos.
+[API] Buscando: 't'
+[API] Encontrados 30 productos.
+[API] Buscando: 'ts'
+[API] Encontrados 30 productos.
+[API] Buscando: 'tsr'
+[API] Encontrados 0 productos.
+[API] Buscando: 'tsra'
+[API] Encontrados 0 productos.
+[API] Buscando: 'tsrag'
+[API] Encontrados 0 productos.
+[API] Buscando: 'tsrago'
+[API] Encontrados 0 productos.
+[API] Buscando: 'tsrag'
+[API] Encontrados 0 productos.
+[API] Buscando: 'tsra'
+[API] Encontrados 0 productos.
+[API] Buscando: 'tsr'
+[API] Encontrados 0 productos.
+[API] Buscando: 'ts'
+[API] Encontrados 30 productos.
+[API] Buscando: 'tsa'
+[API] Encontrados 0 productos.
+[API] Buscando: 'ts'
+[API] Encontrados 30 productos.
+[API] Buscando: 't'
+[API] Encontrados 30 productos.
+[API] Buscando: 'ta'
+[API] Encontrados 30 productos.
+[API] Buscando: 'tar'
+[API] Encontrados 30 productos.
+[API] Buscando: 'taru'
+[API] Encontrados 24 productos.
+[API] Buscando: 'taruh'
+[API] Encontrados 0 productos.
+[API] Buscando: 'taruhg'
+[API] Encontrados 0 productos.
+[API] Buscando: 'taruhgo'
+[API] Encontrados 0 productos.
+[API] Buscando: 'tarugo'
+[API] Encontrados 23 productos.
+
+🚀 ENVIANDO A DUX PRODUCCIÓN (FACTURA):
+{
+  "id_empresa": 5397,
+  "id_sucursal": 1,
+  "id_cliente": 14020175,
+  "descuento_global": 0.0,
+  "id_personal": 6257259,
+  "productos": [
+    {
+      "cod_item": "DR17801",
+      "ctd": 1.0,
+      "precio_uni": 1.0,
+      "porc_iva": 21.0,
+      "porc_desc": 0.0
+    }
+  ],
+  "id_deposito": 10646,
+  "nro_pto_vta": 6,
+  "id_vendedor": 6257259,
+  "id_condicion_pago": 9826,
+  "tipo_comp": "FACTURA",
+  "letra_comp": "B",
+  "cobro": {
+    "fecha_cobro": "2026-09-16",
+    "total": 1.0,
+    "id_caja": 19990,
+    "id_moneda": 1,
+    "cotiza_moneda": 1.0,
+    "detalle": [
+      {
+        "tipo_valor": "TARJETA",
+        "monto": 1.0,
+        "id_tarjeta": 15233,
+        "id_plan_tarjeta": 1,
+        "id_terminal": 6050,
+        "nro_cupon": "000000",
+        "nro_lote": "000"
+      }
+    ]
+  }
+}
+📥 RESPUESTA DE DUX (Status 201):
+{
+  "datos": {
+    "id_comp_venta": 114266015,
+    "id_empresa": 5397,
+    "id_sucursal_empresa": 1,
+    "sucursal": "Carlos Janik 761 - MOSTRADOR",
+    "id_cliente": 14020175,
+    "tipo_comp": "FACTURA",
+    "letra_comp": "B",
+    "nro_pto_vta": "6",
+    "nro_comp": null,
+    "comprobante": "B-00006",
+    "fecha": "2026-09-16",
+    "fecha_vencimiento": null,
+    "monto_gravado": 0.82644628,
+    "monto_exento": 0.0,
+    "monto_iva": 0.17355372,
+    "monto_desc": 0.0,
+    "total": 1.0,
+    "nro_cae_cai": null,
+    "fecha_vencimiento_cae_cai": null,
+    "tipo_validacion_afip": null,
+    "estado_facturacion": "EMITIDA",
+    "anulada": false,
+    "fecha_anula": null,
+    "fecha_registro": "2026-09-16",
+    "detalles": null
+  },
+  "id_solicitud": "req_1db6798a3346"
+}
+[API] Buscando: 't'
+[API] Encontrados 30 productos.
+[API] Buscando: 'ta'
+[API] Encontrados 30 productos.
+[API] Buscando: 'tar'
+[API] Encontrados 30 productos.
+[API] Buscando: 'taru'
+[API] Encontrados 24 productos.
+[API] Buscando: 'tarug'
+[API] Encontrados 23 productos.
+[API] Buscando: 'tarugo'
+[API] Encontrados 23 productos.
+
+🚀 ENVIANDO A DUX PRODUCCIÓN (COMPROBANTE_VENTA):
+{
+  "id_empresa": 5397,
+  "id_sucursal": 1,
+  "id_cliente": 14020175,
+  "descuento_global": 0.0,
+  "id_personal": 15543779,
+  "productos": [
+    {
+      "cod_item": "DR17801",
+      "ctd": 1.0,
+      "precio_uni": 1.0,
+      "porc_iva": 21.0,
+      "porc_desc": 0.0
+    }
+  ],
+  "id_deposito": 10646,
+  "nro_pto_vta": 6,
+  "id_vendedor": 15543779,
+  "id_condicion_pago": 9826,
+  "tipo_comp": "COMPROBANTE_VENTA",
+  "letra_comp": "X",
+  "cobro": {
+    "fecha_cobro": "2026-09-16",
+    "total": 1.0,
+    "id_caja": 19990,
+    "id_moneda": 1,
+    "cotiza_moneda": 1.0,
+    "detalle": [
+      {
+        "tipo_valor": "EFECTIVO",
+        "monto": 1.0
+      }
+    ]
+  }
+}
+📥 RESPUESTA DE DUX (Status 201):
+{
+  "datos": {
+    "id_comp_venta": 114268867,
+    "id_empresa": 5397,
+    "id_sucursal_empresa": 1,
+    "sucursal": "Carlos Janik 761 - MOSTRADOR",
+    "id_cliente": 14020175,
+    "tipo_comp": "COMPROBANTE_VENTA",
+    "letra_comp": "X",
+    "nro_pto_vta": "6",
+    "nro_comp": 29121,
+    "comprobante": "X-00006-00029121",
+    "fecha": "2026-09-16",
+    "fecha_vencimiento": null,
+    "monto_gravado": 0.82644628,
+    "monto_exento": 0.0,
+    "monto_iva": 0.17355372,
+    "monto_desc": 0.0,
+    "total": 1.0,
+    "nro_cae_cai": null,
+    "fecha_vencimiento_cae_cai": null,
+    "tipo_validacion_afip": null,
+    "estado_facturacion": "EMITIDA",
+    "anulada": false,
+    "fecha_anula": null,
+    "fecha_registro": "2026-09-16",
+    "detalles": null
+  },
+  "id_solicitud": "req_54d9e577bce1"
+}
+[API] Buscando: 't'
+[API] Encontrados 30 productos.
+[API] Buscando: 'ta'
+[API] Encontrados 30 productos.
+[API] Buscando: 'tar'
+[API] Encontrados 30 productos.
+[API] Buscando: 'taru'
+[API] Encontrados 24 productos.
+[API] Buscando: 'tarug'
+[API] Encontrados 23 productos.
+[API] Buscando: 'tarugo'
+[API] Encontrados 23 productos.
+
+🚀 ENVIANDO A DUX PRODUCCIÓN (PRESUPUESTO):
+{
+  "id_empresa": 5397,
+  "id_sucursal": 1,
+  "id_cliente": 14020175,
+  "descuento_global": 0.0,
+  "id_personal": 6257260,
+  "items": [
+    {
+      "cod_item": "DR17801",
+      "ctd": 1.0,
+      "precio_uni": 0.82644628,
+      "porc_iva": 21.0,
+      "porc_desc": 0.0
+    }
+  ]
+}
+📥 RESPUESTA DE DUX (Status 201):
+192.168.88.254 - - [16/Sep/2026 14:21:21] "POST /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:32] "GET /api/productos?q=t HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:32] "GET /api/productos?q=ta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:32] "GET /api/productos?q=tar HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:32] "GET /api/productos?q=taru HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:32] "GET /api/productos?q=tarug HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:33] "GET /api/productos?q=tarugo HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:51] "OPTIONS /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:21:52] "POST /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:26] "GET /api/productos?q=b HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:27] "GET /api/productos?q=ba HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:27] "GET /api/productos?q=bar HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:27] "GET /api/productos?q=barr HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:27] "GET /api/productos?q=barra HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:28] "GET /api/productos?q=barral HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:28] "GET /api/productos?q=barral HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:32] "GET /api/productos?q=barral%201 HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:33] "GET /api/productos?q=barral%201. HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:30:36] "GET /api/productos?q=barral%201 HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:31:35] "OPTIONS /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:31:35] "POST /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:32:13] "OPTIONS /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:32:14] "POST /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:32:44] "GET /api/productos?q=b HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:32:45] "GET /api/productos?q=ba HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:32:45] "GET /api/productos?q=bar HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:32:45] "GET /api/productos?q=barr HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:32:45] "GET /api/productos?q=barra HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:32:46] "GET /api/productos?q=barral HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:32:50] "OPTIONS /api/venta HTTP/1.1" 200 -
+{
+  "datos": {
+    "id_presupuesto": 5746716,
+    "nro_presupuesto": 3309,
+    "comprobante": null,
+    "fecha_comp": "2026-09-16",
+    "fecha_vto": null,
+    "id_empresa": 5397,
+    "id_sucursal_empresa": 1,
+    "sucursal_empresa": "Carlos Janik 761 - MOSTRADOR",
+    "id_cliente": 14020175,
+    "cliente": "CONSUMIDOR FINAL",
+    "nombre_comercial": null,
+    "cuit": null,
+    "domicilio": null,
+    "telefono_cliente": null,
+    "email_cliente": null,
+    "id_personal": 6257260,
+    "personal": "PALAVECINO G., VALENTIN",
+    "estado": "PENDIENTE",
+    "id_estado_presupuesto": 22304,
+    "estado_presupuesto": "PENDIENTE",
+    "id_comp_venta": null,
+    "observaciones": null,
+    "monto_exento": 0.0,
+    "monto_gravado": 0.82644628,
+    "monto_iva": 0.17355372,
+    "monto_desc": 0.0,
+    "monto_percepcion_impuesto": 0.0,
+    "monto_impuesto_interno": 0.0,
+    "total": 1.0,
+    "plazo_entrega": null,
+    "lugar_entrega": null,
+    "transporte": null,
+    "condicion_pago": null,
+    "id_moneda": 1,
+    "cotizacion_moneda": 1.0,
+    "fecha_registro": "2026-09-16",
+    "detalles": [
+      {
+        "id_det_presupuesto": 1,
+        "cod_item": "DR17801",
+        "item": "TARUGO N\u00b0 5 COMUN (LA RURAL)",
+        "ctd": 1.0,
+        "precio_uni": 0.82644628,
+        "porc_iva": 21.0,
+        "porc_desc": 0.0,
+        "monto_desc": 0.0,
+        "impuesto_interno": 0.0,
+        "id_det_item": null,
+        "comentarios": null
+      }
+    ]
+  },
+  "id_solicitud": "req_676b7029ee99"
+}
+[API] Buscando: 't'
+[API] Encontrados 30 productos.
+[API] Buscando: 'ta'
+[API] Encontrados 30 productos.
+[API] Buscando: 'tar'
+[API] Encontrados 30 productos.
+[API] Buscando: 'taru'
+[API] Encontrados 24 productos.
+[API] Buscando: 'tarug'
+[API] Encontrados 23 productos.
+[API] Buscando: 'tarugo'
+[API] Encontrados 23 productos.
+
+🚀 ENVIANDO A DUX PRODUCCIÓN (COMPROBANTE_VENTA):
+{
+  "id_empresa": 5397,
+  "id_sucursal": 1,
+  "id_cliente": 14020175,
+  "descuento_global": 0.0,
+  "id_personal": 6257259,
+  "productos": [
+    {
+      "cod_item": "DR17801",
+      "ctd": 1.0,
+      "precio_uni": 6.32,
+      "porc_iva": 21.0,
+      "porc_desc": 0.0
+    }
+  ],
+  "id_deposito": 10646,
+  "nro_pto_vta": 6,
+  "id_vendedor": 6257259,
+  "id_condicion_pago": 9825,
+  "tipo_comp": "COMPROBANTE_VENTA",
+  "letra_comp": "X"
+}
+📥 RESPUESTA DE DUX (Status 201):
+{
+  "datos": {
+    "id_comp_venta": 114269275,
+    "id_empresa": 5397,
+    "id_sucursal_empresa": 1,
+    "sucursal": "Carlos Janik 761 - MOSTRADOR",
+    "id_cliente": 14020175,
+    "tipo_comp": "COMPROBANTE_VENTA",
+    "letra_comp": "X",
+    "nro_pto_vta": "6",
+    "nro_comp": 29122,
+    "comprobante": "X-00006-00029122",
+    "fecha": "2026-09-16",
+    "fecha_vencimiento": null,
+    "monto_gravado": 5.2231405,
+    "monto_exento": 0.0,
+    "monto_iva": 1.0968595,
+    "monto_desc": 0.0,
+    "total": 6.32,
+    "nro_cae_cai": null,
+    "fecha_vencimiento_cae_cai": null,
+    "tipo_validacion_afip": null,
+    "estado_facturacion": "EMITIDA",
+    "anulada": false,
+    "fecha_anula": null,
+    "fecha_registro": "2026-09-16",
+    "detalles": null
+  },
+  "id_solicitud": "req_29f85223cdda"
+}
+[API] Buscando: 'b'
+[API] Encontrados 30 productos.
+[API] Buscando: 'ba'
+[API] Encontrados 30 productos.
+[API] Buscando: 'bar'
+[API] Encontrados 30 productos.
+[API] Buscando: 'barr'
+[API] Encontrados 30 productos.
+[API] Buscando: 'barra'
+[API] Encontrados 30 productos.
+[API] Buscando: 'barral'
+[API] Encontrados 30 productos.
+[API] Buscando: 'barral'
+[API] Encontrados 30 productos.
+[API] Buscando: 'barral 1'
+[API] Encontrados 30 productos.
+[API] Buscando: 'barral 1.'
+[API] Encontrados 0 productos.
+[API] Buscando: 'barral 1'
+[API] Encontrados 30 productos.
+
+🚀 ENVIANDO A DUX PRODUCCIÓN (PRESUPUESTO):
+{
+  "id_empresa": 5397,
+  "id_sucursal": 1,
+  "id_cliente": 14020175,
+  "descuento_global": 0.0,
+  "id_personal": 6257259,
+  "items": [
+    {
+      "cod_item": "DR0015",
+      "ctd": 1.0,
+      "precio_uni": 1860.82644628,
+      "porc_iva": 21.0,
+      "porc_desc": 0.0
+    }
+  ]
+}
+📥 RESPUESTA DE DUX (Status 400):
+{
+  "error": {
+    "codigo": "ERROR_VALIDACION",
+    "mensaje": "Se ha producido un error desconocido.",
+    "id_solicitud": "req_acda607955cb"
+  }
+}
+
+🚀 ENVIANDO A DUX PRODUCCIÓN (PRESUPUESTO):
+{
+  "id_empresa": 5397,
+  "id_sucursal": 1,
+  "id_cliente": 14020175,
+  "descuento_global": 0.0,
+  "id_personal": 6257259,
+  "items": [
+    {
+      "cod_item": "DR0015",
+      "ctd": 1.0,
+      "precio_uni": 1860.82644628,
+      "porc_iva": 21.0,
+      "porc_desc": 0.0
+    }
+  ]
+}
+📥 RESPUESTA DE DUX (Status 201):
+{
+  "datos": {
+    "id_presupuesto": 5746872,
+    "nro_presupuesto": 3311,
+    "comprobante": null,
+    "fecha_comp": "2026-09-16",
+    "fecha_vto": null,
+    "id_empresa": 5397,
+    "id_sucursal_empresa": 1,
+    "sucursal_empresa": "Carlos Janik 761 - MOSTRADOR",
+    "id_cliente": 14020175,
+    "cliente": "CONSUMIDOR FINAL",
+    "nombre_comercial": null,
+    "cuit": null,
+    "domicilio": null,
+    "telefono_cliente": null,
+    "email_cliente": null,
+    "id_personal": 6257259,
+    "personal": "ALEXIS, PABLO PINTOS",
+    "estado": "PENDIENTE",
+    "id_estado_presupuesto": 22304,
+    "estado_presupuesto": "PENDIENTE",
+    "id_comp_venta": null,
+    "observaciones": null,
+    "monto_exento": 0.0,
+    "monto_gravado": 1860.82644628,
+    "monto_iva": 390.77355372,
+    "monto_desc": 0.0,
+    "monto_percepcion_impuesto": 0.0,
+    "monto_impuesto_interno": 0.0,
+    "total": 2251.6,
+    "plazo_entrega": null,
+    "lugar_entrega": null,
+    "transporte": null,
+    "condicion_pago": null,
+    "id_moneda": 1,
+    "cotizacion_moneda": 1.0,
+    "fecha_registro": "2026-09-16",
+    "detalles": [
+      {
+        "id_det_presupuesto": 1,
+        "cod_item": "DR0015",
+        "item": "BARRAL CEDRO 1,20 MTS (B22-00)",
+        "ctd": 1.0,
+        "precio_uni": 1860.82644628,
+        "porc_iva": 21.0,
+        "porc_desc": 0.0,
+        "monto_desc": 0.0,
+        "impuesto_interno": 0.0,
+        "id_det_item": null,
+        "comentarios": null
+      }
+    ]
+  },
+  "id_solicitud": "req_5d338bc74d6c"
+}
+[API] Buscando: 'b'
+[API] Encontrados 30 productos.
+[API] Buscando: 'ba'
+[API] Encontrados 30 productos.
+[API] Buscando: 'bar'
+[API] Encontrados 30 productos.
+[API] Buscando: 'barr'
+[API] Encontrados 30 productos.
+[API] Buscando: 'barra'
+[API] Encontrados 30 productos.
+[API] Buscando: 'barral'
+[API] Encontrados 30 productos.
+
+🚀 ENVIANDO A DUX PRODUCCIÓN (PRESUPUESTO):
+{
+  "id_empresa": 5397,
+  "id_sucursal": 1,
+  "id_cliente": 14020175,
+  "descuento_global": 0.0,
+  "id_personal": 6257259,
+  "items": [
+    {
+      "cod_item": "DR0015",
+      "ctd": 1.0,
+      "precio_uni": 1860.82644628,
+      "porc_iva": 21.0,
+      "porc_desc": 0.0
+    }
+  ]
+}
+📥 RESPUESTA DE DUX (Status 201):
+192.168.88.254 - - [16/Sep/2026 14:32:51] "POST /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:02] "GET /api/productos?q=b HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:02] "GET /api/productos?q=ba HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:02] "GET /api/productos?q=bar HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:03] "GET /api/productos?q=bara HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:03] "GET /api/productos?q=barar HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:03] "GET /api/productos?q=bara HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:05] "GET /api/productos?q=baral HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:05] "GET /api/productos?q=baral HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:07] "GET /api/productos?q=BARRAL HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:30] "GET /api/productos?q=BARRA HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:30] "GET /api/productos?q=BARR HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:30] "GET /api/productos?q=BAR HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:31] "GET /api/productos?q=BA HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:33:31] "GET /api/productos?q=B HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:45:54] "GET /api/productos?q=t HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:45:54] "GET /api/productos?q=to HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:46:04] "OPTIONS /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 14:46:05] "POST /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:00] "GET /api/productos?q=l HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:00] "GET /api/productos?q=ll HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:01] "GET /api/productos?q=lla HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:01] "GET /api/productos?q=llav HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:01] "GET /api/productos?q=llave HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:01] "GET /api/productos?q=llave HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:02] "GET /api/productos?q=llave%20p HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:02] "GET /api/productos?q=llave%20pv HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:02] "GET /api/productos?q=llave%20pvc HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:03] "GET /api/productos?q=llave%20pvc HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:03] "GET /api/productos?q=llave%20pvc%201 HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:04] "GET /api/productos?q=llave%20pvc%201/ HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:04] "GET /api/productos?q=llave%20pvc%201/2 HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:55] "OPTIONS /api/venta HTTP/1.1" 200 -
+192.168.88.254 - - [16/Sep/2026 18:44:56] "POST /api/venta HTTP/1.1" 200 -
