@@ -1,23 +1,262 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
+// ==========================================
+// MODAL DE CLIENTE
+// ==========================================
+const ModalCliente = ({ clienteAEditar, onClose, onGuardarExito }) => {
+  const [formData, setFormData] = useState({
+    apellido_razon_social: '',
+    nombre: '', 
+    cuit_cuil: '',
+    categoria_fiscal: 'CONSUMIDOR_FINAL',
+    domicilio: '',
+    localidad: '',
+    provincia: ''
+  });
+  const [cargando, setCargando] = useState(false);
+  const [idDestino, setIdDestino] = useState(null); 
+
+  useEffect(() => {
+    if (clienteAEditar) {
+      setIdDestino(clienteAEditar.id);
+      setFormData({
+        apellido_razon_social: clienteAEditar.nombre || '',
+        nombre: '', 
+        cuit_cuil: clienteAEditar.cuit || '',
+        categoria_fiscal: clienteAEditar.categoria_iva || 'CONSUMIDOR_FINAL',
+        domicilio: clienteAEditar.domicilio || '',
+        localidad: clienteAEditar.localidad || '',
+        provincia: clienteAEditar.provincia || ''
+      });
+    } else {
+      setIdDestino(null);
+    }
+  }, [clienteAEditar]);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const verificarCuitDux = async (cuit) => {
+    if (cuit.length >= 10 && !idDestino) {
+      try {
+        const res = await fetch(`http://192.168.88.250:5000/api/clientes?q=${cuit}`);
+        const data = await res.json();
+        const existe = data.resultados?.find(c => c.cuit.replace(/\D/g, '') === cuit);
+        
+        if (existe) {
+          if (window.confirm(`⚠️ El CUIT ${cuit} ya está cargado:\n👤 ${existe.nombre}\n\n¿Cargar datos para editar?`)) {
+            setIdDestino(existe.id);
+            setFormData(prev => ({ 
+              ...prev, 
+              apellido_razon_social: existe.nombre, 
+              categoria_fiscal: existe.categoria_iva 
+            }));
+          } else {
+             setFormData(prev => ({ ...prev, cuit_cuil: '' }));
+          }
+        }
+      } catch (e) { console.error(e); }
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCargando(true);
+    
+    const datosParaEnviar = {};
+    for (let key in formData) {
+      datosParaEnviar[key] = formData[key] === '' ? null : formData[key];
+    }
+
+    const url = idDestino ? `http://192.168.88.250:5000/api/clientes/${idDestino}` : `http://192.168.88.250:5000/api/clientes`;
+    const method = idDestino ? 'PUT' : 'POST';
+
+    try {
+      const response = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datosParaEnviar)
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(idDestino ? '✅ Cliente actualizado con éxito' : '✅ Cliente creado en DUX');
+        onGuardarExito(data.datos); 
+        onClose();
+      } else {
+        alert(`❌ Error DUX: ${data.detalle || data.error}`);
+      }
+    } catch (error) {
+      alert("Error de conexión");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100]">
+      <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-black mb-4 text-gray-800 border-b pb-2">
+          {idDestino ? '✏️ Editar Cliente' : '👤 Nuevo Cliente'}
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div>
+            <label className="text-xs font-bold text-gray-600 block mb-1">CUIT / DNI</label>
+            <input 
+              type="text" name="cuit_cuil" value={formData.cuit_cuil} 
+              onChange={(e) => setFormData({...formData, cuit_cuil: e.target.value.replace(/\D/g, '')})} 
+              onBlur={(e) => verificarCuitDux(e.target.value.replace(/\D/g, ''))} 
+              className="w-full p-2 border-2 rounded font-bold outline-none bg-blue-50 focus:border-blue-500" 
+              placeholder="Ej: 20366062999" 
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs font-bold text-gray-600">Apellido / Razón Social *</label>
+              <input type="text" name="apellido_razon_social" value={formData.apellido_razon_social} onChange={handleChange} required className="w-full p-2 border-2 rounded font-bold outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-600">Nombre</label>
+              <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} className="w-full p-2 border-2 rounded font-bold outline-none focus:border-blue-500" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs font-bold text-gray-600">Provincia</label>
+              <input type="text" name="provincia" value={formData.provincia} onChange={handleChange} className="w-full p-2 border-2 rounded font-bold outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-600">Localidad</label>
+              <input type="text" name="localidad" value={formData.localidad} onChange={handleChange} className="w-full p-2 border-2 rounded font-bold outline-none focus:border-blue-500" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-600">Domicilio</label>
+            <input type="text" name="domicilio" value={formData.domicilio} onChange={handleChange} className="w-full p-2 border-2 rounded font-bold outline-none focus:border-blue-500" />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-600">Condición IVA</label>
+            <select name="categoria_fiscal" value={formData.categoria_fiscal} onChange={handleChange} className="w-full p-2 border-2 rounded font-bold outline-none bg-white focus:border-blue-500">
+              <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
+              <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
+              <option value="MONOTRIBUTO">Monotributo</option>
+              <option value="EXENTO">Exento</option>
+            </select>
+          </div>
+          
+          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+            <button type="button" onClick={onClose} disabled={cargando} className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded hover:bg-gray-300 transition-colors">Cancelar</button>
+            <button type="submit" disabled={cargando} className="px-4 py-2 bg-green-600 text-white font-bold rounded shadow hover:bg-green-700 transition-colors">
+              {cargando ? 'Guardando...' : '💾 Guardar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// APLICACIÓN PRINCIPAL
+// ==========================================
 function App() {
   const [busqueda, setBusqueda] = useState('');
   const [resultados, setResultados] = useState([]);
   const [sugerencia, setSugerencia] = useState(null);
   const [carrito, setCarrito] = useState([]);
   const [descuentoTotal, setDescuentoTotal] = useState(0);
-  
-  // Estados estrictos
-  const [vendedor, setVendedor] = useState(null);
-  const [condicionPago, setCondicionPago] = useState(null); // CONTADO o CUENTA_CORRIENTE
-  const [metodoPago, setMetodoPago] = useState(null); // EFECTIVO o TARJETA
+  const [mostrarModalABM, setMostrarModalABM] = useState(false);
+  const [clienteAEditar, setClienteAEditar] = useState(null);
 
-  // Lista de vendedores con los IDs exactos de DUX
+  const [pendientes, setPendientes] = useState([]);
+  const [mostrarPanelPendientes, setMostrarPanelPendientes] = useState(false);
+
+  const [pantallaCarga, setPantallaCarga] = useState({ activo: false, mensaje: '' });
+  const [ticketAImprimir, setTicketAImprimir] = useState(null);
+
+  const clientePorDefecto = { nombre: "Consumidor Final", cuit: "00000000", categoria_iva: "Consumidor Final", id: 14020175 };
+  const [clienteActual, setClienteActual] = useState(clientePorDefecto);
+  const [busquedaCliente, setBusquedaCliente] = useState('');
+  const [resultadosCliente, setResultadosCliente] = useState([]);
+  const [mostrarBuscadorCliente, setMostrarBuscadorCliente] = useState(false);
+
+  const [vendedor, setVendedor] = useState(null);
+  const [condicionPago, setCondicionPago] = useState(null);
+  const [metodoPago, setMetodoPago] = useState(null);
+
   const listaVendedores = [
     { id: 6257259, nombre: "PABLO" },
     { id: 15543779, nombre: "MAURICIO" },
     { id: 6257260, nombre: "VALENTÍN" }
   ];
+
+  useEffect(() => {
+    const guardados = localStorage.getItem('facturasPendientes');
+    if (guardados) setPendientes(JSON.parse(guardados));
+  }, []);
+
+  useEffect(() => {
+    const checkPendientes = async () => {
+      if (pendientes.filter(p => p.estado === 'procesando').length === 0) return;
+
+      let actualizados = false;
+      const nuevosPendientes = await Promise.all(pendientes.map(async (p) => {
+         if (p.estado === 'procesando') {
+            try {
+              const ts = new Date().getTime(); 
+              const res = await fetch(`http://192.168.88.250:5000/api/rastrear_numero?id=${p.idCliente}&tipo=${p.ticketData.tipo_crudo}&total=${p.ticketData.total}&_t=${ts}`);
+              if (res.ok) {
+                 const data = await res.json();
+                 if (data.numero && data.cae && data.numero !== "S/N") {
+                    actualizados = true;
+                    return { 
+                        ...p, 
+                        estado: 'listo', 
+                        ticketData: { 
+                            ...p.ticketData, 
+                            numero_dux: data.numero, 
+                            cae: data.cae, 
+                            vto: data.vto 
+                        } 
+                    };
+                 }
+              }
+            } catch(e) {}
+         }
+         return p;
+      }));
+
+      if (actualizados) {
+         setPendientes(nuevosPendientes);
+         localStorage.setItem('facturasPendientes', JSON.stringify(nuevosPendientes));
+      }
+    };
+
+    const interval = setInterval(checkPendientes, 15000);
+    return () => clearInterval(interval);
+  }, [pendientes]);
+
+  const imprimirPendiente = (itemPendiente) => {
+      setTicketAImprimir(itemPendiente.ticketData);
+      setMostrarPanelPendientes(false);
+      setTimeout(() => { window.print(); }, 500);
+      
+      const filtrados = pendientes.filter(p => p.id !== itemPendiente.id);
+      setPendientes(filtrados);
+      localStorage.setItem('facturasPendientes', JSON.stringify(filtrados));
+  };
+
+  const borrarPendiente = (id) => {
+      if(window.confirm("¿Seguro que querés borrar este registro pendiente? (No lo borra de DUX, solo de esta pantalla)")) {
+          const filtrados = pendientes.filter(p => p.id !== id);
+          setPendientes(filtrados);
+          localStorage.setItem('facturasPendientes', JSON.stringify(filtrados));
+      }
+  };
 
   const ejecutarBusqueda = async (texto) => {
     try {
@@ -27,9 +266,7 @@ function App() {
         setResultados(datos.resultados || []);
         setSugerencia(datos.sugerencia || null);
       }
-    } catch (error) {
-      console.error("Error backend:", error);
-    }
+    } catch (error) { console.error("Error backend:", error); }
   };
 
   const manejarEscritura = (evento) => {
@@ -51,9 +288,7 @@ function App() {
   const manejarTeclado = (evento) => {
     if (evento.key === 'F1') {
       evento.preventDefault(); 
-      if (sugerencia) {
-        aplicarSugerencia();
-      }
+      if (sugerencia) aplicarSugerencia();
     }
   };
 
@@ -61,9 +296,7 @@ function App() {
     const existe = carrito.find(item => item.codigo === producto.codigo);
     if (existe) {
       setCarrito(carrito.map(item =>
-        item.codigo === producto.codigo
-          ? { ...item, cantidad: parseFloat(item.cantidad) + 1 }
-          : item
+        item.codigo === producto.codigo ? { ...item, cantidad: parseFloat(item.cantidad) + 1 } : item
       ));
     } else {
       setCarrito([...carrito, { 
@@ -115,35 +348,53 @@ function App() {
   const subtotalCarrito = carrito.reduce((sum, item) => sum + calcularSubtotalItem(item), 0);
   const totalFinalCalculado = subtotalCarrito * (1 - ((parseFloat(descuentoTotal) || 0) / 100));
 
-  const finalizarVenta = async (tipo_comprobante) => {
-    if (carrito.length === 0) return;
-    
-    if (!vendedor) {
-      alert("⚠️ Seleccioná el VENDEDOR (Pablo, Mauricio o Valentín) arriba del ticket.");
+  const ejecutarBusquedaCliente = async (texto) => {
+    try {
+      const respuesta = await fetch(`http://192.168.88.250:5000/api/clientes?q=${texto}`);
+      if (respuesta.ok) {
+        const datos = await respuesta.json();
+        setResultadosCliente(datos.resultados || []);
+      }
+    } catch (error) { console.error("Error buscando cliente:", error); }
+  };
+
+  const manejarEscrituraCliente = (evento) => {
+    const texto = evento.target.value;
+    setBusquedaCliente(texto);
+    if (texto.trim().length < 2) {
+      setResultadosCliente([]);
       return;
     }
-    
-    // Validamos la lógica de 2 pasos
+    ejecutarBusquedaCliente(texto);
+  };
+
+  const seleccionarCliente = (cliente) => {
+    setClienteActual(cliente);
+    setBusquedaCliente('');
+    setResultadosCliente([]);
+    setMostrarBuscadorCliente(false);
+  };
+
+  const finalizarVenta = async (tipo_comprobante) => {
+    if (carrito.length === 0) return;
+    if (!vendedor) return alert("⚠️ Seleccioná el VENDEDOR.");
     if (tipo_comprobante === 'comprobante_venta' || tipo_comprobante === 'factura') {
-      if (!condicionPago) {
-        alert("⚠️ Seleccioná la CONDICIÓN DE PAGO (Contado o Cta. Corriente).");
-        return;
-      }
-      if (condicionPago === 'CONTADO' && !metodoPago) {
-        alert("⚠️ Para ventas al CONTADO, tenés que indicar si es EFECTIVO o TARJETA.");
-        return;
-      }
+      if (!condicionPago) return alert("⚠️ Seleccioná la CONDICIÓN DE PAGO.");
+      if (condicionPago === 'CONTADO' && !metodoPago) return alert("⚠️ Indicá EFECTIVO o TARJETA.");
     }
     
     const paquete_dux = {
       tipo: tipo_comprobante,
+      cliente: clienteActual,
       items: carrito,
       descuento_total: descuentoTotal,
       id_personal: vendedor,
-      condicion_pago: condicionPago, // Envía CONTADO o CUENTA_CORRIENTE
-      metodo_pago: metodoPago,       // Envía EFECTIVO, TARJETA o null
+      condicion_pago: condicionPago, 
+      metodo_pago: metodoPago,       
       total_final: totalFinalCalculado.toFixed(2) 
     };
+
+    setPantallaCarga({ activo: true, mensaje: 'Guardando en DUX...' });
 
     try {
       const respuesta = await fetch('http://192.168.88.250:5000/api/venta', {
@@ -155,286 +406,503 @@ function App() {
       const datos_respuesta = await respuesta.json();
       
       if (datos_respuesta.status === 'ok') {
-        alert(`✅ ${tipo_comprobante.toUpperCase()} procesado correctamente.`);
-        // Limpiamos mostrador
-        setCarrito([]);
-        setDescuentoTotal(0);
-        setBusqueda('');
-        setResultados([]);
-        setCondicionPago(null); 
-        setMetodoPago(null); 
+        const idDuxGenerado = datos_respuesta.id_dux;
+        const datosOriginales = datos_respuesta.datos_originales?.datos || {};
+        
+        if (!idDuxGenerado) {
+             alert("⚠️ Venta guardada, pero DUX no devolvió ID interno.");
+             setPantallaCarga({ activo: false, mensaje: '' });
+             return;
+        }
+
+        if (tipo_comprobante === 'factura') {
+            const nuevoPendiente = {
+               id: Date.now(),
+               idCliente: clienteActual.id || 14020175, 
+               estado: 'procesando',
+               ticketData: {
+                  fecha: new Date().toLocaleString('es-AR'),
+                  tipo_crudo: tipo_comprobante,
+                  tipo: String(clienteActual?.categoria_iva || '').toLowerCase().includes('inscripto') ? 'FACTURA A' : 'FACTURA B',
+                  cliente: clienteActual,
+                  vendedor: listaVendedores.find(v => v.id === vendedor)?.nombre || 'Vendedor',
+                  items: [...carrito],
+                  subtotal: subtotalCarrito,
+                  descuento: descuentoTotal,
+                  total: totalFinalCalculado,
+                  numero_dux: 'S/N',
+                  cae: null,
+                  vto: null
+               }
+            };
+
+            const nuevaLista = [...pendientes, nuevoPendiente];
+            setPendientes(nuevaLista);
+            localStorage.setItem('facturasPendientes', JSON.stringify(nuevaLista));
+
+            setCarrito([]);
+            setDescuentoTotal(0);
+            setBusqueda('');
+            setResultados([]);
+            setCondicionPago(null); 
+            setMetodoPago(null); 
+            setClienteActual(clientePorDefecto);
+            setPantallaCarga({ activo: false, mensaje: '' });
+            return; 
+
+        } else {
+            let tituloTicket = 'COMPROBANTE';
+            let numeroTicket = 'S/N';
+
+            if (tipo_comprobante === 'presupuesto') {
+                tituloTicket = 'PRESUPUESTO';
+                if (datosOriginales.nro_presupuesto) {
+                    numeroTicket = String(datosOriginales.nro_presupuesto).padStart(8, '0');
+                } else {
+                    numeroTicket = datosOriginales.comprobante || `ID-${idDuxGenerado}`;
+                }
+            } else if (tipo_comprobante === 'comprobante_venta') {
+                tituloTicket = 'C. VENTA (INTERNO)';
+                numeroTicket = datosOriginales.comprobante || `ID-${idDuxGenerado}`;
+            }
+
+            setTicketAImprimir({
+              fecha: new Date().toLocaleString('es-AR'),
+              tipo_crudo: tipo_comprobante,
+              tipo: tituloTicket,
+              cliente: clienteActual,
+              vendedor: listaVendedores.find(v => v.id === vendedor)?.nombre || 'Vendedor',
+              items: [...carrito],
+              subtotal: subtotalCarrito,
+              descuento: descuentoTotal,
+              total: totalFinalCalculado,
+              numero_dux: numeroTicket 
+            });
+
+            setCarrito([]);
+            setDescuentoTotal(0);
+            setBusqueda('');
+            setResultados([]);
+            setCondicionPago(null); 
+            setMetodoPago(null); 
+            setClienteActual(clientePorDefecto);
+            setPantallaCarga({ activo: false, mensaje: '' });
+
+            setTimeout(() => { window.print(); }, 800);
+        }
+
       } else {
         alert("❌ Error: " + datos_respuesta.error);
+        setPantallaCarga({ activo: false, mensaje: '' });
       }
       
     } catch (error) {
-      console.error("Error de conexión:", error);
-      alert("Hubo un error de red al comunicarse con el servidor local.");
-    }
+      alert("Hubo un error de red al enviar la venta al servidor local.");
+      setPantallaCarga({ activo: false, mensaje: '' });
+    } 
   };
 
   return (
-    <div className="min-h-screen bg-gray-200 p-2 md:p-4 font-sans flex flex-col md:flex-row gap-4 touch-manipulation">
-      {/* Columna Izquierda: Buscador */}
-      <div className="flex-[3] bg-white rounded-xl shadow-lg flex flex-col h-[95vh]">
-        <div className="bg-blue-700 p-4 text-white">
-          <h1 className="text-2xl font-black">GUN - Mostrador</h1>
+    <>
+      {pantallaCarga.activo && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex flex-col justify-center items-center z-[200] text-white">
+          <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-b-4 border-white mb-6"></div>
+          <h2 className="text-3xl font-black mb-2 animate-pulse text-green-400">Procesando Venta...</h2>
+          <p className="text-xl text-gray-300 font-bold mb-1">{pantallaCarga.mensaje}</p>
         </div>
-        <div className="p-4 border-b">
-          <input
-            type="text"
-            placeholder="Escriba para buscar código o producto..."
-            className="w-full p-4 text-2xl border-2 rounded-xl focus:outline-none focus:border-blue-600"
-            value={busqueda}
-            onChange={manejarEscritura}
-            onKeyDown={manejarTeclado}
-            autoFocus
-          />
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-          {resultados.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center p-4">
-              {sugerencia ? (
-                <div className="text-center bg-blue-50 p-6 rounded-xl border border-blue-200">
-                  <p className="text-gray-500 text-lg mb-2">No encontramos nada exacto.</p>
-                  <p className="text-xl flex items-center justify-center">
-                    ¿Quisiste decir{' '}
-                    <button 
-                      onClick={aplicarSugerencia} 
-                      className="text-blue-700 font-black text-2xl hover:underline cursor-pointer bg-white px-3 py-1 rounded shadow-sm border mx-2"
-                    >
-                      {sugerencia}
-                    </button>
-                    ? 
-                  </p>
-                  <div className="mt-4 inline-block bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-full text-sm">
-                    Atajo: Presioná F1
-                  </div>
-                </div>
+      )}
+
+      {mostrarPanelPendientes && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[150] print:hidden">
+            <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center border-b pb-3 mb-4">
+                  <h2 className="text-2xl font-black text-gray-800">Facturas Pendientes</h2>
+                  <button onClick={() => setMostrarPanelPendientes(false)} className="text-red-600 font-black text-xl hover:text-red-800">X</button>
+              </div>
+              
+              {pendientes.length === 0 ? (
+                  <p className="text-center text-gray-500 font-bold py-10">No hay facturas procesando.</p>
               ) : (
-                <div className="text-gray-400 text-lg">Comience a escribir...</div>
+                  <div className="space-y-3">
+                      {pendientes.map((p, index) => (
+                          <div key={index} className={`p-4 border-2 rounded-xl flex justify-between items-center shadow-sm ${p.estado === 'listo' ? 'border-green-500 bg-green-50' : 'border-orange-300 bg-orange-50'}`}>
+                              <div>
+                                  <p className="font-bold text-lg">{p.ticketData.cliente.nombre}</p>
+                                  <p className="text-sm text-gray-600">Total: ${p.ticketData.total} | Tipo: {p.ticketData.tipo}</p>
+                                  {p.estado === 'procesando' ? (
+                                      <p className="text-orange-600 font-bold mt-1 text-xs animate-pulse">⏳ Esperando CAE desde AFIP...</p>
+                                  ) : (
+                                      <p className="text-green-700 font-bold mt-1 text-xs">✅ Nro: {p.ticketData.numero_dux} | CAE Listo</p>
+                                  )}
+                              </div>
+                              <div className="flex gap-2">
+                                  {p.estado === 'listo' && (
+                                      <button onClick={() => imprimirPendiente(p)} className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded shadow">🖨️ Imprimir</button>
+                                  )}
+                                  <button onClick={() => borrarPendiente(p.id)} className="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded shadow-sm">Borrar</button>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
               )}
             </div>
-          ) : (
-            <ul className="space-y-2">
-              {resultados.map((prod, index) => (
-                <li 
-                  key={index} 
-                  onClick={() => agregarAlCarrito(prod)}
-                  className="p-4 bg-white border rounded-lg shadow-sm flex justify-between items-center hover:border-blue-500 cursor-pointer"
-                >
-                  <div>
-                    <p className="font-bold text-lg text-gray-800">{prod.nombre}</p>
-                    <p className="text-sm text-gray-500">Cód: {prod.codigo}</p>
-                  </div>
-                  <div className="text-2xl font-black text-green-700">
-                    ${parseFloat(prod.precio).toFixed(2)}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* Columna Derecha: Carrito y Checkout */}
-      <div className="flex-[2] bg-white rounded-xl shadow-lg flex flex-col h-[95vh] p-4">
-        
-        {/* Selector de Vendedor */}
-        <div className="flex items-center gap-3 border-b pb-3 mb-3">
-          <span className="font-bold text-gray-800 uppercase tracking-wide">Vendedor:</span>
-          <div className="flex gap-2">
-            {listaVendedores.map(v => (
-              <button 
-                key={v.id}
-                onClick={() => setVendedor(v.id)}
-                className={`px-3 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm
-                  ${vendedor === v.id ? 'bg-blue-800 text-white border-2 border-blue-900' : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'}`}
-              >
-                {v.nombre}
-              </button>
-            ))}
           </div>
-        </div>
+      )}
+
+      <div className="min-h-screen bg-gray-200 p-2 md:p-4 font-sans flex flex-col md:flex-row gap-4 touch-manipulation print:hidden">
         
-        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-          {carrito.map((item, i) => {
-            const precioCobrado = parseFloat(item.precio_cobrado) || 0;
-            const precioOriginal = parseFloat(item.precio_original) || 0;
-            const diferencia = precioCobrado - precioOriginal;
-
-            return (
-              <div key={i} className="p-3 bg-gray-50 border rounded-lg flex flex-col gap-3 relative">
-                <div className="flex justify-between items-start">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-gray-800 leading-tight">{item.nombre}</span>
-                    {diferencia < -0.01 && (
-                      <span className="text-xs text-orange-500 font-bold">
-                        Precio original: ${precioOriginal.toFixed(2)}
-                      </span>
-                    )}
-                    {diferencia > 0.01 && (
-                      <span className="text-xs text-red-600 font-bold">
-                        Recargo aplicado: +${diferencia.toFixed(2)} (Base: ${precioOriginal.toFixed(2)})
-                      </span>
-                    )}
-                  </div>
-                  <button 
-                    onClick={() => eliminarItem(item.codigo)}
-                    className="bg-red-100 text-red-600 font-bold px-3 py-1 rounded hover:bg-red-200 ml-2"
-                  >
-                    X
-                  </button>
-                </div>
-                
-                <div className="flex flex-wrap gap-2 items-center text-sm mt-1">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-500 font-bold mb-1">Cant.</span>
-                    <input 
-                      type="number" 
-                      className="w-16 p-2 border rounded text-center font-bold"
-                      value={item.cantidad}
-                      onChange={(e) => modificarItem(item.codigo, 'cantidad', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      min="1"
-                    />
-                  </div>
-                  
-                  <div className="flex flex-col">
-                    <span className="text-xs text-blue-600 font-bold mb-1">Precio Final ($)</span>
-                    <input 
-                      type="number"
-                      step="0.01"
-                      className="w-24 p-2 border border-blue-200 bg-blue-50 rounded font-bold text-blue-800"
-                      value={item.precio_cobrado}
-                      onChange={(e) => modificarItem(item.codigo, 'precio_cobrado', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                    />
-                  </div>
-
-                  <div className="flex flex-col">
-                    <span className="text-xs text-orange-600 font-bold mb-1">Desc. (%)</span>
-                    <input 
-                      type="number"
-                      step="0.01"
-                      className="w-20 p-2 border border-orange-200 bg-orange-50 rounded font-bold text-orange-700 text-center"
-                      value={item.descuento}
-                      onChange={(e) => modificarItem(item.codigo, 'descuento', e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                    />
-                  </div>
-
-                  <div className="ml-auto flex flex-col items-end">
-                    <span className="text-xs text-gray-500 font-bold mb-1">Subtotal</span>
-                    <span className="font-black text-lg text-green-700">
-                      ${calcularSubtotalItem(item).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 pt-4 border-t flex flex-col gap-3">
-          <div className="flex justify-between items-center text-gray-600 font-bold px-2">
-            <span>Subtotal Bruto:</span>
-            <span>${subtotalCarrito.toFixed(2)}</span>
+        <div className="flex-[7] bg-white rounded-xl shadow-lg flex flex-col h-[95vh] relative">
+          <div className="bg-blue-700 p-4 text-white rounded-t-xl flex justify-between items-center">
+            <h1 className="text-2xl font-black">GUN - Mostrador</h1>
+            <button 
+               onClick={() => setMostrarPanelPendientes(true)}
+               className={`font-bold px-4 py-2 rounded shadow-md border-2 transition-colors ${pendientes.some(p => p.estado === 'listo') ? 'bg-green-500 hover:bg-green-600 border-white text-white animate-bounce' : pendientes.length > 0 ? 'bg-orange-500 hover:bg-orange-600 border-white text-white' : 'bg-blue-800 text-blue-300 border-transparent'}`}
+            >
+               ⏳ Facturas Pendientes ({pendientes.length})
+            </button>
           </div>
           
-          <div className="flex justify-between items-center bg-orange-100 p-2 rounded-lg border border-orange-200">
-            <span className="font-bold text-orange-800">Descuento Total (%)</span>
-            <input 
-              type="number"
-              step="0.01"
-              className="w-24 p-2 border border-orange-300 rounded text-right font-bold text-orange-700 focus:outline-none"
-              value={descuentoTotal}
-              onChange={(e) => setDescuentoTotal(e.target.value)}
-              onFocus={(e) => e.target.select()}
-            />
+          <div className="p-4 border-b relative z-20">
+            <input type="text" placeholder="Escriba para buscar código o producto..." className="w-full p-4 text-2xl border-2 rounded-xl focus:outline-none focus:border-blue-600" value={busqueda} onChange={manejarEscritura} onKeyDown={manejarTeclado} autoFocus />
+            
+            {(resultados.length > 0 || sugerencia || busqueda.trim() !== '') && (
+              <div className="absolute top-full left-0 w-full bg-white shadow-2xl z-50 max-h-[50vh] overflow-y-auto border border-gray-300 rounded-b-xl">
+                {resultados.length === 0 ? (
+                  <div className="p-4 flex flex-col items-center justify-center">
+                    {sugerencia ? (
+                      <div className="text-center bg-blue-50 p-6 rounded-xl border border-blue-200">
+                        <p className="text-gray-500 text-lg mb-2">No encontramos nada exacto.</p>
+                        <p className="text-xl flex items-center justify-center">
+                          ¿Quisiste decir <button onClick={aplicarSugerencia} className="text-blue-700 font-black text-2xl hover:underline bg-white px-3 py-1 rounded shadow-sm border mx-2">{sugerencia}</button>? 
+                        </p>
+                      </div>
+                    ) : ( <div className="text-gray-400 text-lg">Buscando...</div> )}
+                  </div>
+                ) : (
+                  <ul className="space-y-1 p-2">
+                    {resultados.map((prod, index) => (
+                      <li key={index} onClick={() => agregarAlCarrito(prod)} className="p-4 bg-white border-b hover:bg-gray-50 flex justify-between items-center cursor-pointer">
+                        <div>
+                          <p className="font-bold text-lg text-gray-800">{prod.nombre}</p>
+                          <p className="text-sm text-gray-500">Cód: {prod.codigo}</p>
+                        </div>
+                        <div className="text-2xl font-black text-green-700">${parseFloat(prod.precio).toFixed(2)}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* PASO 1: Condición de Pago */}
-          <div className="flex justify-between items-center bg-gray-100 p-3 rounded-lg border border-gray-300">
-            <span className="font-bold text-gray-800 uppercase text-sm">Condición:</span>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => { setCondicionPago('CONTADO'); setMetodoPago(null); }} 
-                className={`px-3 py-2 rounded font-bold transition-colors shadow-sm text-sm
-                  ${condicionPago === 'CONTADO' ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-700 hover:bg-gray-400'}`}
-              >
-                CONTADO
-              </button>
-              <button 
-                onClick={() => { setCondicionPago('CUENTA_CORRIENTE'); setMetodoPago(null); }} 
-                className={`px-3 py-2 rounded font-bold transition-colors shadow-sm text-sm
-                  ${condicionPago === 'CUENTA_CORRIENTE' ? 'bg-orange-500 text-white' : 'bg-gray-300 text-gray-700 hover:bg-gray-400'}`}
-              >
-                CTA. CORRIENTE
+          <div className="flex-1 overflow-y-auto p-4 bg-gray-50 z-10">
+            {carrito.length === 0 ? (
+               <div className="text-center text-gray-400 text-xl font-bold mt-10">El carrito está vacío</div>
+            ) : (
+              <div className="space-y-3">
+                {carrito.map((item, i) => {
+                  const precioCobrado = parseFloat(item.precio_cobrado) || 0;
+                  const precioOriginal = parseFloat(item.precio_original) || 0;
+                  const diferencia = precioCobrado - precioOriginal;
+
+                  return (
+                    <div key={i} className="p-3 bg-white border rounded-lg flex flex-col gap-3 shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-gray-800 text-lg">{item.nombre}</span>
+                          {diferencia < -0.01 && <span className="text-xs text-orange-500 font-bold">Precio original: ${precioOriginal.toFixed(2)}</span>}
+                          {diferencia > 0.01 && <span className="text-xs text-red-600 font-bold">Recargo: +${diferencia.toFixed(2)}</span>}
+                        </div>
+                        <button onClick={() => eliminarItem(item.codigo)} className="bg-red-100 text-red-600 font-bold px-3 py-1 rounded hover:bg-red-200">X</button>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 items-center text-sm">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-500 font-bold mb-1">Cant.</span>
+                          <input type="number" className="w-16 p-2 border rounded text-center font-bold bg-gray-50" value={item.cantidad} onChange={(e) => modificarItem(item.codigo, 'cantidad', e.target.value)} onFocus={(e) => e.target.select()} min="1" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-blue-600 font-bold mb-1">Precio Final ($)</span>
+                          <input type="number" step="0.01" className="w-24 p-2 border border-blue-200 bg-blue-50 rounded font-bold text-blue-800" value={item.precio_cobrado} onChange={(e) => modificarItem(item.codigo, 'precio_cobrado', e.target.value)} onFocus={(e) => e.target.select()} />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-orange-600 font-bold mb-1">Desc. (%)</span>
+                          <input type="number" step="0.01" className="w-20 p-2 border border-orange-200 bg-orange-50 rounded font-bold text-orange-700 text-center" value={item.descuento} onChange={(e) => modificarItem(item.codigo, 'descuento', e.target.value)} onFocus={(e) => e.target.select()} />
+                        </div>
+                        <div className="ml-auto flex flex-col items-end">
+                          <span className="text-xs text-gray-500 font-bold mb-1">Subtotal</span>
+                          <span className="font-black text-xl text-green-700">${calcularSubtotalItem(item).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-[3] bg-white rounded-xl shadow-lg flex flex-col h-[95vh] p-4">
+          
+          <div className="bg-gray-100 p-3 rounded-lg border border-gray-300 mb-4 relative z-30">
+             <div className="flex justify-between items-center mb-2">
+               <span className="text-xs font-bold text-gray-500 tracking-wider">CLIENTE</span>
+               <div className="flex gap-1">
+                 <button onClick={() => { setClienteAEditar(null); setMostrarModalABM(true); }} className="bg-green-100 text-green-700 hover:bg-green-200 font-black px-2 py-1 rounded shadow-sm border border-green-300">+</button>
+                 <button onClick={() => { setMostrarBuscadorCliente(!mostrarBuscadorCliente); if (!mostrarBuscadorCliente) setTimeout(() => document.getElementById('input-cliente').focus(), 100); }} className="text-blue-600 hover:text-blue-800 font-bold text-sm bg-blue-100 px-2 py-1 rounded shadow-sm border border-blue-200">
+                   {mostrarBuscadorCliente ? '❌ Cancelar' : '🔍 Buscar'}
+                 </button>
+               </div>
+             </div>
+
+             {mostrarBuscadorCliente ? (
+               <div className="mt-2 relative">
+                 <input id="input-cliente" type="text" placeholder="DNI, CUIT o Nombre..." className="w-full p-2 border-2 border-blue-400 rounded-lg focus:outline-none font-bold" value={busquedaCliente} onChange={manejarEscrituraCliente} />
+                 {resultadosCliente.length > 0 && (
+                   <ul className="absolute top-full left-0 w-full bg-white border border-gray-300 shadow-2xl rounded-b-lg mt-1 max-h-48 overflow-y-auto z-50">
+                     {resultadosCliente.map((cli, idx) => (
+                       <li key={idx} onClick={() => seleccionarCliente(cli)} className="p-3 border-b hover:bg-blue-50 cursor-pointer flex justify-between items-center">
+                         <div>
+                           <div className="font-bold text-gray-800 text-sm">{cli.nombre}</div>
+                           <div className="text-xs text-gray-500 mt-1">CUIT: {cli.cuit} | {cli.categoria_iva}</div>
+                         </div>
+                         <button onClick={(e) => { e.stopPropagation(); setClienteAEditar(cli); setMostrarModalABM(true); }} className="text-gray-400 hover:text-orange-600 p-2">✏️</button>
+                       </li>
+                     ))}
+                   </ul>
+                 )}
+               </div>
+             ) : (
+               <>
+                 <div className="flex justify-between items-start">
+                   <div className="text-lg font-black text-gray-800 truncate pr-2" title={clienteActual.nombre}>{clienteActual.nombre}</div>
+                   {clienteActual.cuit !== '00000000' && (
+                     <button onClick={() => setClienteActual(clientePorDefecto)} className="text-red-500 hover:text-red-700 bg-red-100 hover:bg-red-200 px-2 py-0.5 rounded shadow-sm border border-red-200 font-bold text-xs">✖ Quitar</button>
+                   )}
+                 </div>
+                 <div className="flex justify-between mt-1 items-center">
+                   <span className="text-sm text-gray-600 font-bold">CUIT: {clienteActual.cuit}</span>
+                   <span className="text-xs font-bold text-gray-700 bg-gray-200 px-2 py-1 rounded border border-gray-300 truncate max-w-[120px]">{clienteActual.categoria_iva}</span>
+                 </div>
+               </>
+             )}
+          </div>
+
+          <div className="flex flex-col gap-2 border-b pb-4 mb-4">
+            <span className="font-bold text-gray-800 uppercase tracking-wide text-sm">Vendedor:</span>
+            <div className="grid grid-cols-3 gap-2">
+              {listaVendedores.map(v => (
+                <button key={v.id} onClick={() => setVendedor(v.id)} className={`px-1 py-2 rounded-lg font-bold text-xs transition-colors shadow-sm ${vendedor === v.id ? 'bg-blue-800 text-white border-2 border-blue-900' : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'}`}>
+                  {v.nombre}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto space-y-3">
+            <div className="flex justify-between items-center text-gray-600 font-bold px-2">
+              <span>Subtotal Bruto:</span>
+              <span>${subtotalCarrito.toFixed(2)}</span>
+            </div>
+            
+            <div className="flex justify-between items-center bg-orange-100 p-2 rounded-lg border border-orange-200">
+              <span className="font-bold text-orange-800 text-sm">Descuento Total (%)</span>
+              <input type="number" step="0.01" className="w-20 p-1 border border-orange-300 rounded text-right font-bold text-orange-700" value={descuentoTotal} onChange={(e) => setDescuentoTotal(e.target.value)} onFocus={(e) => e.target.select()} />
+            </div>
+
+            <div className="flex flex-col bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm mt-4">
+              <span className="text-lg font-bold text-blue-900">TOTAL A PAGAR</span>
+              <span className="text-4xl font-black text-blue-700 text-right">${totalFinalCalculado.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t flex flex-col gap-3">
+            <div className="flex flex-col gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
+              <span className="font-bold text-gray-800 uppercase text-xs">Condición:</span>
+              <div className="flex gap-2">
+                <button onClick={() => { setCondicionPago('CONTADO'); setMetodoPago(null); }} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${condicionPago === 'CONTADO' ? 'bg-green-600 text-white border-green-700' : 'bg-white text-gray-700'}`}>CONTADO</button>
+                <button onClick={() => { setCondicionPago('CUENTA_CORRIENTE'); setMetodoPago(null); }} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${condicionPago === 'CUENTA_CORRIENTE' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-gray-700'}`}>CTA. CORRIENTE</button>
+              </div>
+            </div>
+
+            {condicionPago === 'CONTADO' && (
+              <div className="flex flex-col gap-2 bg-blue-50 p-2 rounded-lg border border-blue-200">
+                <span className="font-bold text-blue-900 uppercase text-xs">Método:</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setMetodoPago('EFECTIVO')} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${metodoPago === 'EFECTIVO' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-blue-800'}`}>EFECTIVO</button>
+                  <button onClick={() => setMetodoPago('TARJETA')} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${metodoPago === 'TARJETA' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-blue-800'}`}>TARJETA</button>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button onClick={() => finalizarVenta('presupuesto')} disabled={pantallaCarga.activo || carrito.length === 0} className={`p-3 rounded-lg font-bold text-xs text-white shadow-md ${carrito.length > 0 ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-300'}`}>PRESUPUESTO</button>
+              <button onClick={() => finalizarVenta('comprobante_venta')} disabled={pantallaCarga.activo || carrito.length === 0} className={`p-3 rounded-lg font-bold text-xs text-white shadow-md ${carrito.length > 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300'}`}>C. VENTA</button>
+              <button onClick={() => finalizarVenta('factura')} disabled={pantallaCarga.activo || carrito.length === 0} className={`col-span-2 p-3 rounded-lg font-bold text-sm text-white shadow-md ${carrito.length > 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-green-300'}`}>
+                {String(clienteActual?.categoria_iva || '').toLowerCase().includes('inscripto') ? 'FACTURA A' : 'FACTURA B'}
               </button>
             </div>
           </div>
 
-          {/* PASO 2: Método de pago (SE MUESTRA SOLO SI ES CONTADO) */}
-          {condicionPago === 'CONTADO' && (
-            <div className="flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-200">
-              <span className="font-bold text-blue-900 uppercase text-sm">Método:</span>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setMetodoPago('EFECTIVO')} 
-                  className={`px-3 py-2 rounded font-bold transition-colors shadow-sm text-sm
-                    ${metodoPago === 'EFECTIVO' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-blue-800 hover:bg-blue-300'}`}
-                >
-                  EFECTIVO
-                </button>
-                <button 
-                  onClick={() => setMetodoPago('TARJETA')} 
-                  className={`px-3 py-2 rounded font-bold transition-colors shadow-sm text-sm
-                    ${metodoPago === 'TARJETA' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-blue-800 hover:bg-blue-300'}`}
-                >
-                  TARJETA
-                </button>
+        </div>
+        
+        {mostrarModalABM && (
+          <ModalCliente clienteAEditar={clienteAEditar} onClose={() => setMostrarModalABM(false)} onGuardarExito={(datosFrescos) => { if (datosFrescos) setClienteActual(datosFrescos); }} />
+        )}
+      </div>
+
+      {/* ==========================================
+          TICKET TÉRMICO (Multiformato)
+          ========================================== */}
+      {ticketAImprimir && (
+        <div className="hidden print:block text-black font-mono text-sm bg-white" style={{ width: '80mm', margin: '0', padding: '0', lineHeight: '1.2' }}>
+          
+          {/* ----------------------------------------------------
+              1. DISEÑO C. VENTA Y PRESUPUESTO (NO SE TOCA)
+              ---------------------------------------------------- */}
+          {(ticketAImprimir.tipo_crudo === 'comprobante_venta' || ticketAImprimir.tipo_crudo === 'presupuesto') && (
+            <div className="pt-2">
+              <div className="text-xs uppercase mb-2 leading-tight">
+                <p>CLIENTE: {ticketAImprimir.cliente.nombre}</p>
+                <p>CATEGORIA FISCAL: {ticketAImprimir.cliente.categoria_iva}</p>
+                <p className="font-bold">{ticketAImprimir.tipo}: {ticketAImprimir.numero_dux}</p>
+                <p>FECHA: {ticketAImprimir.fecha.split(',')[0].trim()} &nbsp;&nbsp; HORA: {ticketAImprimir.fecha.split(',')[1].trim().substring(0, 5)}</p>
+              </div>
+
+              <p className="border-t border-black border-dashed mb-1"></p>
+              <div className="text-xs w-full mb-1">
+                <p>Cant. x Precio Unit.</p>
+                <div className="flex justify-between">
+                  <p>Descripcion</p>
+                  <p>Total</p>
+                </div>
+              </div>
+              <p className="border-b border-black border-dashed mb-1"></p>
+
+              <div className="text-xs mb-2">
+                {ticketAImprimir.items.map((item, i) => {
+                   let precioMuestra = parseFloat(item.precio_cobrado);
+                   let subtotalItem = parseFloat(item.cantidad) * precioMuestra;
+                   
+                   return (
+                    <div key={i} className="mb-1">
+                      <p>{parseFloat(item.cantidad).toFixed(2).replace('.', ',')} x {precioMuestra.toFixed(2).replace('.', ',')}</p>
+                      <div className="flex justify-between">
+                        <p className="truncate max-w-[200px]">{item.nombre.toUpperCase()}</p>
+                        <p>$ {subtotalItem.toFixed(2).replace('.', ',')}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="border-t border-black border-dashed mb-1"></p>
+              <div className="text-xs uppercase space-y-1">
+                <div className="flex justify-between">
+                  <p>SUBTOTAL:</p>
+                  <p>$ {ticketAImprimir.subtotal.toFixed(2).replace('.', ',')}</p>
+                </div>
+                <div className="flex justify-between">
+                  <p>DESCUENTO:</p>
+                  <p>$ {((ticketAImprimir.subtotal * (ticketAImprimir.descuento / 100)) || 0).toFixed(2).replace('.', ',')}</p>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <p>TOTAL:</p>
+                  <p>$ {ticketAImprimir.total.toFixed(2).replace('.', ',')}</p>
+                </div>
+              </div>
+
+              <div className="text-center mt-4 text-xs">
+                <p>GRACIAS POR SU COMPRA</p>
+                <p className="text-[10px] mt-4">Generado por www.duxsoftware.com.ar</p>
               </div>
             </div>
           )}
 
-          <div className="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm mb-2 mt-1">
-            <span className="text-xl font-black text-blue-900">TOTAL</span>
-            <span className="text-4xl font-black text-blue-700">
-              ${totalFinalCalculado.toFixed(2)}
-            </span>
-          </div>
+          {/* ----------------------------------------------------
+              2. DISEÑO FACTURA OFICIAL (A/B)
+              ---------------------------------------------------- */}
+          {ticketAImprimir.tipo_crudo === 'factura' && (
+            <div className="pt-2">
+              <div className="text-xs uppercase mb-2 leading-tight">
+                <p>SAGUIR DIEGO EDUARDO</p>
+                <p>CUIT: 20349738172</p>
+                <p>CARLOS JANIK 761</p>
+                <p>ING. BRUTOS 20-34973817-2</p>
+                <p>INICIO ACTIVIDAD 08/2010</p>
+                <p>RESPONSABLE INSCRIPTO A CONSUMIDOR FINAL</p>
+              </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <button 
-              onClick={() => finalizarVenta('presupuesto')}
-              disabled={carrito.length === 0}
-              className={`p-3 rounded-lg font-bold text-sm md:text-base text-white shadow-md transition-colors 
-                ${carrito.length > 0 ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800' : 'bg-gray-300 cursor-not-allowed'}`}
-            >
-              PRESUPUESTO
-            </button>
-            <button 
-              onClick={() => finalizarVenta('comprobante_venta')}
-              disabled={carrito.length === 0}
-              className={`p-3 rounded-lg font-bold text-sm md:text-base text-white shadow-md transition-colors 
-                ${carrito.length > 0 ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800' : 'bg-blue-300 cursor-not-allowed'}`}
-            >
-              C. VENTA
-            </button>
-            <button 
-              onClick={() => finalizarVenta('factura')}
-              disabled={carrito.length === 0}
-              className={`p-3 rounded-lg font-bold text-sm md:text-base text-white shadow-md transition-colors 
-                ${carrito.length > 0 ? 'bg-green-600 hover:bg-green-700 active:bg-green-800' : 'bg-green-300 cursor-not-allowed'}`}
-            >
-              FACTURA
-            </button>
-          </div>
+              <p className="border-t border-black border-dashed mb-1"></p>
+              
+              <div className="text-xs uppercase mb-2 leading-tight">
+                <p className="font-bold">FACTURA: {ticketAImprimir.numero_dux}</p>
+                {ticketAImprimir.cae && (
+                  <p>CAE: {ticketAImprimir.cae} FECHA VTO: {
+                    (() => {
+                      let vtoFormat = ticketAImprimir.vto;
+                      if (vtoFormat && vtoFormat.includes('-')) {
+                          const parts = vtoFormat.split('T')[0].split('-');
+                          if (parts.length === 3) vtoFormat = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                      }
+                      return vtoFormat || '';
+                    })()
+                  }</p>
+                )}
+                <p>CLIENTE: {ticketAImprimir.cliente.nombre}</p>
+                <p>CATEGORIA FISCAL: {ticketAImprimir.cliente.categoria_iva}</p>
+                <p>FECHA: {ticketAImprimir.fecha.split(',')[0].trim()}HORA: {ticketAImprimir.fecha.split(',')[1].trim().substring(0, 5)}</p>
+              </div>
+
+              <p className="border-t border-black border-dashed mb-1"></p>
+              <div className="text-xs w-full mb-1">
+                <p>Cant. x Precio Unit.</p>
+                <div className="flex justify-between">
+                  <p>Descripcion</p>
+                  <p>Total</p>
+                </div>
+              </div>
+              <p className="border-b border-black border-dashed mb-1"></p>
+
+              <div className="text-xs mb-2">
+                {ticketAImprimir.items.map((item, i) => {
+                   let precioMuestra = parseFloat(item.precio_cobrado);
+                   let subtotalItem = parseFloat(item.cantidad) * precioMuestra;
+                   return (
+                    <div key={i} className="mb-1">
+                      <p>{parseFloat(item.cantidad).toFixed(2).replace('.', ',')} x {precioMuestra.toFixed(2).replace('.', ',')}</p>
+                      <div className="flex justify-between">
+                        <p className="truncate max-w-[200px]">{item.nombre.toUpperCase()}</p>
+                        <p>$ {subtotalItem.toFixed(2).replace('.', ',')}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="border-t border-black border-dashed mb-1"></p>
+              <div className="text-xs uppercase space-y-1">
+                
+                <div className="flex justify-between"><p>REG. FISCAL (LEY 27.743)</p><p></p></div>
+                <div className="flex justify-between"><p>IVA CONTENIDO:</p><p>$ {((ticketAImprimir.subtotal * 0.21)).toFixed(2).replace('.', ',')}</p></div>
+                <div className="flex justify-between"><p>OTROS IMP. NAC. INDIRECTOS:</p><p>$ 0,00</p></div>
+                <p className="border-t border-black border-dashed mt-1 mb-1"></p>
+
+                <div className="flex justify-between"><p>SUBTOTAL:</p><p>$ {ticketAImprimir.subtotal.toFixed(2).replace('.', ',')}</p></div>
+                <div className="flex justify-between"><p>DESCUENTO:</p><p>$ {((ticketAImprimir.subtotal * (ticketAImprimir.descuento / 100)) || 0).toFixed(2).replace('.', ',')}</p></div>
+                <div className="flex justify-between font-bold text-sm mt-1"><p>TOTAL:</p><p>$ {ticketAImprimir.total.toFixed(2).replace('.', ',')}</p></div>
+              </div>
+
+              <div className="text-center mt-6 text-xs font-bold">
+                <p>GRACIAS POR SU COMPRA</p>
+                <p className="text-[10px] mt-2 font-normal">Generado por www.duxsoftware.com.ar</p>
+              </div>
+            </div>
+          )}
+
         </div>
-
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 

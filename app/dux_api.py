@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -60,10 +61,11 @@ def enviar_documento_dux(datos_venta):
     
     condicion_pago = datos_venta.get('condicion_pago') 
     metodo_pago = datos_venta.get('metodo_pago') 
+
+    cliente = datos_venta.get('cliente', {})
+    id_cliente_final = cliente.get('id') or 14020175
     
-    # Redondeo exacto
     total_final = round(float(datos_venta.get('total_final', 0)), 2)
-    # Fecha actual en formato ISO (YYYY-MM-DD) requerida por el esquema V2FacturaCobro
     fecha_actual = datetime.now().strftime('%Y-%m-%d')
 
     endpoints = {
@@ -98,7 +100,7 @@ def enviar_documento_dux(datos_venta):
     payload = {
         "id_empresa": int(EMPRESA_ID),         
         "id_sucursal": 1,                      
-        "id_cliente": 14020175,                
+        "id_cliente": int(id_cliente_final),                
         "descuento_global": float(descuento_global)
     }
 
@@ -122,17 +124,17 @@ def enviar_documento_dux(datos_venta):
         
         if tipo == 'factura':
             payload["tipo_comp"] = "FACTURA"
-            payload["letra_comp"] = "B"
+            if 'inscripto' in cliente.get('categoria_iva', '').lower():
+                payload["letra_comp"] = "A"
+            else:
+                payload["letra_comp"] = "B"
         elif tipo == 'comprobante_venta':
             payload["tipo_comp"] = "COMPROBANTE_VENTA"
             payload["letra_comp"] = "X"
 
-    # --- MAGIA BASADA EN OPENAPI ---
     if tipo in ['comprobante_venta', 'factura'] and condicion_pago == 'CONTADO' and metodo_pago:
-        
-        # 1. El detalle del cobro (El array)
         detalle_cobro = {
-            "tipo_valor": metodo_pago, # EFECTIVO o TARJETA
+            "tipo_valor": metodo_pago,
             "monto": total_final
         }
         
@@ -143,31 +145,92 @@ def enviar_documento_dux(datos_venta):
             detalle_cobro["nro_cupon"] = "000000"
             detalle_cobro["nro_lote"] = "000"
             
-        # 2. El objeto "cobro" (No es un array, es un dict)
         payload["cobro"] = {
             "fecha_cobro": fecha_actual,
             "total": total_final,
             "id_caja": 19990,
             "id_moneda": 1,
             "cotiza_moneda": 1.0,
-            "detalle": [detalle_cobro] # Acá metemos el detalle como lista
+            "detalle": [detalle_cobro] 
         }
 
     try:
-        print(f"\n🚀 ENVIANDO A DUX PRODUCCIÓN ({tipo.upper()}):")
-        print(json.dumps(payload, indent=2))
-        
         respuesta = requests.post(url_destino, json=payload, headers=obtener_headers())
-        
         datos_dux = respuesta.json()
-        print(f"📥 RESPUESTA DE DUX (Status {respuesta.status_code}):")
-        print(json.dumps(datos_dux, indent=2))
         
         if respuesta.status_code in [200, 201]:
-            return {"status": "ok", "mensaje": f"{tipo.upper()} procesado correctamente."}
+            id_comprobante = None
+            if isinstance(datos_dux, dict) and 'datos' in datos_dux:
+                id_comprobante = datos_dux['datos'].get('id_comp_venta') or datos_dux['datos'].get('id_presupuesto')
+            
+            return {
+                "status": "ok", 
+                "mensaje": "Creado en DUX",
+                "id_dux": id_comprobante,
+                "datos_originales": datos_dux
+            }
         else:
             return {"status": "error", "error": json.dumps(datos_dux)}
         
     except Exception as e:
-        print("Error de conexión con DUX:", e)
         return {"status": "error", "error": str(e)}
+
+def consultar_numero_comprobante(id_buscar, tipo, total_esperado=None):
+    try:
+        if tipo == "presupuesto":
+            url_legal = f"{BASE_URL}/presupuestos/{id_buscar}?id_empresa={EMPRESA_ID}"
+            res = requests.get(url_legal, headers=obtener_headers())
+            if res.ok:
+                datos_temporales = res.json()
+                datos_internos = datos_temporales.get('datos', datos_temporales)
+                if isinstance(datos_internos, list) and len(datos_internos) > 0:
+                    datos_internos = datos_internos[0]
+                    
+                numero = datos_internos.get('nro_presupuesto')
+                if numero is not None:
+                    return {"numero": str(numero).zfill(8)}
+            return {"numero": None}
+        else:
+            # BÚSQUEDA POR CLIENTE Y TOTAL PARA ASEGURARNOS DE AGARRAR LA FACTURA REAL
+            fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+            url_rastreo = f"{BASE_URL}/facturas?id_empresa={EMPRESA_ID}&id_cliente={id_buscar}&fecha_desde={fecha_hoy}&fecha_hasta={fecha_hoy}"
+            
+            res = requests.get(url_rastreo, headers=obtener_headers())
+            if res.ok:
+                datos = res.json().get('datos', [])
+                if not datos:
+                    return {"numero": None}
+                
+                # Filtramos facturas que coincidan con el monto exacto de la venta actual
+                if total_esperado:
+                    try:
+                        total_flt = float(total_esperado)
+                        datos_filtrados = [f for f in datos if abs(float(f.get('total', 0)) - total_flt) < 0.1]
+                        if datos_filtrados:
+                            datos = datos_filtrados
+                    except:
+                        pass
+                
+                if not datos:
+                    return {"numero": None}
+                    
+                datos.sort(key=lambda x: x.get('id', 0), reverse=True)
+                ultima_factura = datos[0]
+                
+                cae = ultima_factura.get('nro_cae_cai')
+                nro_comp = ultima_factura.get('nro_comp')
+                
+                if cae and str(cae).strip() and nro_comp:
+                    letra = ultima_factura.get('letra_comp', 'B')
+                    pto_vta = str(ultima_factura.get('nro_pto_vta', 6)).zfill(5)
+                    nro = str(nro_comp).zfill(8)
+                    numero_armado = f"{letra}-{pto_vta}-{nro}"
+                    
+                    return {
+                        "numero": numero_armado,
+                        "cae": str(cae),
+                        "vto": ultima_factura.get('fecha_vencimiento_cae_cai')
+                    }
+            return {"numero": None}
+    except Exception as e:
+        return {"numero": None}

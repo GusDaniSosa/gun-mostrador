@@ -1,0 +1,4 @@
+1. Buscando: 20349738172
+2. URL DUX: https://erp.duxsoftware.com.ar/WSERP/rest/services/v2/clientes?id_empresa=5397&documento=20349738172
+3. Estado HTTP: 200
+4. DUX Respondió: {"datos":[{"id_cliente":24386635,"full_name":"\"FUNDACION PARA LA LUCHA CONTRA EL PICUDO DEL ALGODONERO\"(FULCPA)","apellido_razon_social":"\"FUNDACION PARA LA LUCHA CONTRA EL PICUDO DEL ALGODONERO\"(FULCPA)","nombre":null,"nombre_comercial":null,"categoria_fiscal":"CONSUMIDOR_FINAL","tipo_doc":null,"nro_doc":null,"cuit_cuil":"30688938755","codigo":null,"email":null,"vendedor":null,"provincia":"CIUDAD AUTONOMA DE BUENOS AIRES","localidad":null,"barrio":null,"domicilio":"LAVALLE 381 PISO:08 DPTO:
