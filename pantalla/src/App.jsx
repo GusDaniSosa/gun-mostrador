@@ -1,6 +1,62 @@
 import { useState, useEffect } from 'react';
 
 // ==========================================
+// FUNCIÓN PARA CALCULAR ALERTAS DE 24HS
+// ==========================================
+const obtenerEtiquetaCambio = (prod) => {
+  if (!prod.fecha_actualizacion) return null;
+  
+  const fechaAct = new Date(prod.fecha_actualizacion);
+  const ahora = new Date();
+  const horasPasadas = (ahora - fechaAct) / (1000 * 60 * 60);
+
+  if (horasPasadas > 24) return null; 
+
+  const precioActual = parseFloat(prod.precio);
+  const precioAnt = parseFloat(prod.precio_anterior);
+
+  if (precioAnt === 0) {
+    return <span className="ml-2 text-[10px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded border border-green-400 shadow-sm" title="Agregado recientemente al sistema">NUEVO 🆕</span>;
+  } else if (precioActual > precioAnt) {
+    return <span className="ml-2 text-[10px] font-black bg-red-200 text-red-800 px-2 py-0.5 rounded border border-red-400 shadow-sm" title={`Precio anterior: $${precioAnt.toFixed(2)}`}>SUBIÓ 📈</span>;
+  } else if (precioActual < precioAnt) {
+    return <span className="ml-2 text-[10px] font-black bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded border border-yellow-400 shadow-sm" title={`Precio anterior: $${precioAnt.toFixed(2)}`}>BAJÓ 📉</span>;
+  } else {
+    return <span className="ml-2 text-[10px] font-black bg-blue-200 text-blue-800 px-2 py-0.5 rounded border border-blue-400 shadow-sm" title="Se modificó la descripción del artículo">MODIFICADO ✏️</span>;
+  }
+};
+
+// ==========================================
+// TABLA DE INTERESES POR CUOTA (TARJETA)
+// ==========================================
+const tablaCuotas = [
+  { cuotas: 1, interes: 0.00 },
+  { cuotas: 2, interes: 8.76 },
+  { cuotas: 3, interes: 11.45 },
+  { cuotas: 4, interes: 15.80 },
+  { cuotas: 5, interes: 18.54 },
+  { cuotas: 6, interes: 22.36 },
+  { cuotas: 7, interes: 24.98 },
+  { cuotas: 8, interes: 27.48 },
+  { cuotas: 9, interes: 29.86 },
+  { cuotas: 10, interes: 32.14 },
+  { cuotas: 11, interes: 34.31 },
+  { cuotas: 12, interes: 36.38 },
+  { cuotas: 13, interes: 38.36 },
+  { cuotas: 14, interes: 40.25 },
+  { cuotas: 15, interes: 42.06 },
+  { cuotas: 16, interes: 43.78 },
+  { cuotas: 17, interes: 45.44 },
+  { cuotas: 18, interes: 47.02 },
+  { cuotas: 19, interes: 48.53 },
+  { cuotas: 20, interes: 49.98 },
+  { cuotas: 21, interes: 51.37 },
+  { cuotas: 22, interes: 52.70 },
+  { cuotas: 23, interes: 53.98 },
+  { cuotas: 24, interes: 55.20 }
+];
+
+// ==========================================
 // MODAL DE CLIENTE
 // ==========================================
 const ModalCliente = ({ clienteAEditar, onClose, onGuardarExito }) => {
@@ -45,7 +101,7 @@ const ModalCliente = ({ clienteAEditar, onClose, onGuardarExito }) => {
         const existe = data.resultados?.find(c => c.cuit.replace(/\D/g, '') === cuit);
         
         if (existe) {
-          if (window.confirm(`⚠️ El CUIT ${cuit} ya está cargado:\n👤 ${existe.nombre}\n\n¿Cargar datos para editar?`)) {
+          if (window.confirm(`⚠ El CUIT ${cuit} ya está cargado:\n👤 ${existe.nombre}\n\n¿Cargar datos para editar?`)) {
             setIdDestino(existe.id);
             setFormData(prev => ({ 
               ...prev, 
@@ -177,6 +233,7 @@ function App() {
 
   const [pantallaCarga, setPantallaCarga] = useState({ activo: false, mensaje: '' });
   const [ticketAImprimir, setTicketAImprimir] = useState(null);
+  const [sincronizando, setSincronizando] = useState(false);
 
   const clientePorDefecto = { nombre: "Consumidor Final", cuit: "00000000", categoria_iva: "Consumidor Final", id: 14020175 };
   const [clienteActual, setClienteActual] = useState(clientePorDefecto);
@@ -187,6 +244,9 @@ function App() {
   const [vendedor, setVendedor] = useState(null);
   const [condicionPago, setCondicionPago] = useState(null);
   const [metodoPago, setMetodoPago] = useState(null);
+  
+  // ESTADO NUEVO PARA LAS CUOTAS
+  const [cuotasSeleccionadas, setCuotasSeleccionadas] = useState(1);
 
   const listaVendedores = [
     { id: 6257259, nombre: "PABLO" },
@@ -251,11 +311,23 @@ function App() {
   };
 
   const borrarPendiente = (id) => {
-      if(window.confirm("¿Seguro que querés borrar este registro pendiente? (No lo borra de DUX, solo de esta pantalla)")) {
+      if(window.confirm("¿Seguro que querés borrar este registro pendiente?")) {
           const filtrados = pendientes.filter(p => p.id !== id);
           setPendientes(filtrados);
           localStorage.setItem('facturasPendientes', JSON.stringify(filtrados));
       }
+  };
+
+  const ejecutarSincronizacionManual = async () => {
+    if (!window.confirm("¿Descargar precios actualizados desde DUX?\n\nEsto se hará de fondo para no trabar la caja. Puede demorar hasta 10 minutos en actualizar los 19.000 artículos.")) return;
+    
+    setSincronizando(true);
+    try {
+      const res = await fetch('http://192.168.88.250:5000/api/sincronizar', { method: 'POST' });
+      if (res.ok) alert("✅ Sincronización en marcha. Podés seguir facturando. Las etiquetas de alerta aparecerán solas.");
+      else alert("❌ Ocurrió un error al intentar despertar el sincronizador.");
+    } catch (e) { alert("Error de conexión. ¿Está prendido el servidor Python?"); }
+    setTimeout(() => setSincronizando(false), 8000);
   };
 
   const ejecutarBusqueda = async (texto) => {
@@ -325,11 +397,8 @@ function App() {
           nuevoItem.precio_cobrado = (item.precio_original * (1 - (numValor / 100))).toFixed(2);
         } else if (campo === 'precio_cobrado') {
           if (item.precio_original > 0) {
-            if (numValor > item.precio_original) {
-              nuevoItem.descuento = 0;
-            } else {
-              nuevoItem.descuento = (((item.precio_original - numValor) / item.precio_original) * 100).toFixed(2);
-            }
+            if (numValor > item.precio_original) nuevoItem.descuento = 0;
+            else nuevoItem.descuento = (((item.precio_original - numValor) / item.precio_original) * 100).toFixed(2);
           }
         }
       }
@@ -345,8 +414,17 @@ function App() {
     return (parseFloat(item.cantidad) || 0) * (parseFloat(item.precio_cobrado) || 0);
   };
 
+  // --- CÁLCULO MÁGICO DE TOTALES E INTERESES ---
   const subtotalCarrito = carrito.reduce((sum, item) => sum + calcularSubtotalItem(item), 0);
-  const totalFinalCalculado = subtotalCarrito * (1 - ((parseFloat(descuentoTotal) || 0) / 100));
+  const totalConDescuento = subtotalCarrito * (1 - ((parseFloat(descuentoTotal) || 0) / 100));
+
+  const interesActual = (condicionPago === 'CONTADO' && metodoPago === 'TARJETA') 
+    ? (tablaCuotas.find(c => c.cuotas === cuotasSeleccionadas)?.interes || 0) 
+    : 0;
+
+  const montoRecargoTarjeta = totalConDescuento * (interesActual / 100);
+  const totalFinalCalculado = totalConDescuento + montoRecargoTarjeta;
+  const valorCuota = cuotasSeleccionadas > 0 ? (totalFinalCalculado / cuotasSeleccionadas) : totalFinalCalculado;
 
   const ejecutarBusquedaCliente = async (texto) => {
     try {
@@ -382,16 +460,33 @@ function App() {
       if (!condicionPago) return alert("⚠️ Seleccioná la CONDICIÓN DE PAGO.");
       if (condicionPago === 'CONTADO' && !metodoPago) return alert("⚠️ Indicá EFECTIVO o TARJETA.");
     }
-    
+
+    // --- PROCESAMIENTO INVISIBLE PARA DUX Y AFIP ---
+    // Si hay interés, inflamos el precio individual de cada producto para que cuadre todo
+    let carritoProcesado = carrito;
+    let subtotalProcesado = subtotalCarrito;
+
+    if (interesActual > 0) {
+      const factorRecargo = 1 + (interesActual / 100);
+      carritoProcesado = carrito.map(item => ({
+        ...item,
+        precio_cobrado: (parseFloat(item.precio_cobrado) * factorRecargo).toFixed(2)
+      }));
+      subtotalProcesado = carritoProcesado.reduce((sum, item) => sum + (item.cantidad * parseFloat(item.precio_cobrado)), 0);
+    }
+
+    // Recalculamos el total exacto basándonos en los precios inflados para evitar diferencias de 1 centavo
+    const totalFinalDux = subtotalProcesado * (1 - ((parseFloat(descuentoTotal) || 0) / 100));
+
     const paquete_dux = {
       tipo: tipo_comprobante,
       cliente: clienteActual,
-      items: carrito,
+      items: carritoProcesado,
       descuento_total: descuentoTotal,
       id_personal: vendedor,
       condicion_pago: condicionPago, 
       metodo_pago: metodoPago,       
-      total_final: totalFinalCalculado.toFixed(2) 
+      total_final: totalFinalDux.toFixed(2) 
     };
 
     setPantallaCarga({ activo: true, mensaje: 'Guardando en DUX...' });
@@ -426,10 +521,10 @@ function App() {
                   tipo: String(clienteActual?.categoria_iva || '').toLowerCase().includes('inscripto') ? 'FACTURA A' : 'FACTURA B',
                   cliente: clienteActual,
                   vendedor: listaVendedores.find(v => v.id === vendedor)?.nombre || 'Vendedor',
-                  items: [...carrito],
-                  subtotal: subtotalCarrito,
+                  items: [...carritoProcesado],
+                  subtotal: subtotalProcesado,
                   descuento: descuentoTotal,
-                  total: totalFinalCalculado,
+                  total: totalFinalDux,
                   numero_dux: 'S/N',
                   cae: null,
                   vto: null
@@ -446,6 +541,7 @@ function App() {
             setResultados([]);
             setCondicionPago(null); 
             setMetodoPago(null); 
+            setCuotasSeleccionadas(1);
             setClienteActual(clientePorDefecto);
             setPantallaCarga({ activo: false, mensaje: '' });
             return; 
@@ -456,11 +552,7 @@ function App() {
 
             if (tipo_comprobante === 'presupuesto') {
                 tituloTicket = 'PRESUPUESTO';
-                if (datosOriginales.nro_presupuesto) {
-                    numeroTicket = String(datosOriginales.nro_presupuesto).padStart(8, '0');
-                } else {
-                    numeroTicket = datosOriginales.comprobante || `ID-${idDuxGenerado}`;
-                }
+                numeroTicket = datosOriginales.nro_presupuesto ? String(datosOriginales.nro_presupuesto).padStart(8, '0') : (datosOriginales.comprobante || `ID-${idDuxGenerado}`);
             } else if (tipo_comprobante === 'comprobante_venta') {
                 tituloTicket = 'C. VENTA (INTERNO)';
                 numeroTicket = datosOriginales.comprobante || `ID-${idDuxGenerado}`;
@@ -472,10 +564,10 @@ function App() {
               tipo: tituloTicket,
               cliente: clienteActual,
               vendedor: listaVendedores.find(v => v.id === vendedor)?.nombre || 'Vendedor',
-              items: [...carrito],
-              subtotal: subtotalCarrito,
+              items: [...carritoProcesado],
+              subtotal: subtotalProcesado,
               descuento: descuentoTotal,
-              total: totalFinalCalculado,
+              total: totalFinalDux,
               numero_dux: numeroTicket 
             });
 
@@ -485,6 +577,7 @@ function App() {
             setResultados([]);
             setCondicionPago(null); 
             setMetodoPago(null); 
+            setCuotasSeleccionadas(1);
             setClienteActual(clientePorDefecto);
             setPantallaCarga({ activo: false, mensaje: '' });
 
@@ -537,7 +630,7 @@ function App() {
                               </div>
                               <div className="flex gap-2">
                                   {p.estado === 'listo' && (
-                                      <button onClick={() => imprimirPendiente(p)} className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded shadow">🖨️ Imprimir</button>
+                                      <button onClick={() => imprimirPendiente(p)} className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded shadow">🖨️️ Imprimir</button>
                                   )}
                                   <button onClick={() => borrarPendiente(p.id)} className="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded shadow-sm">Borrar</button>
                               </div>
@@ -553,11 +646,14 @@ function App() {
         
         <div className="flex-[7] bg-white rounded-xl shadow-lg flex flex-col h-[95vh] relative">
           <div className="bg-blue-700 p-4 text-white rounded-t-xl flex justify-between items-center">
-            <h1 className="text-2xl font-black">GUN - Mostrador</h1>
-            <button 
-               onClick={() => setMostrarPanelPendientes(true)}
-               className={`font-bold px-4 py-2 rounded shadow-md border-2 transition-colors ${pendientes.some(p => p.estado === 'listo') ? 'bg-green-500 hover:bg-green-600 border-white text-white animate-bounce' : pendientes.length > 0 ? 'bg-orange-500 hover:bg-orange-600 border-white text-white' : 'bg-blue-800 text-blue-300 border-transparent'}`}
-            >
+            <div className="flex items-center gap-4">
+               <h1 className="text-2xl font-black">GUN - Mostrador</h1>
+               <button onClick={ejecutarSincronizacionManual} disabled={sincronizando} className={`px-3 py-1 text-sm font-bold rounded transition-colors shadow-sm border border-blue-500 ${sincronizando ? 'bg-blue-800 text-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+                  {sincronizando ? '⏳ Sincronizando...' : '🔄 Actualizar Precios'}
+               </button>
+            </div>
+            
+            <button onClick={() => setMostrarPanelPendientes(true)} className={`font-bold px-4 py-2 rounded shadow-md border-2 transition-colors ${pendientes.some(p => p.estado === 'listo') ? 'bg-green-500 hover:bg-green-600 border-white text-white animate-bounce' : pendientes.length > 0 ? 'bg-orange-500 hover:bg-orange-600 border-white text-white' : 'bg-blue-800 text-blue-300 border-transparent'}`}>
                ⏳ Facturas Pendientes ({pendientes.length})
             </button>
           </div>
@@ -583,7 +679,10 @@ function App() {
                     {resultados.map((prod, index) => (
                       <li key={index} onClick={() => agregarAlCarrito(prod)} className="p-4 bg-white border-b hover:bg-gray-50 flex justify-between items-center cursor-pointer">
                         <div>
-                          <p className="font-bold text-lg text-gray-800">{prod.nombre}</p>
+                          <div className="font-bold text-lg text-gray-800 flex items-center">
+                              {prod.nombre}
+                              {obtenerEtiquetaCambio(prod)}
+                          </div>
                           <p className="text-sm text-gray-500">Cód: {prod.codigo}</p>
                         </div>
                         <div className="text-2xl font-black text-green-700">${parseFloat(prod.precio).toFixed(2)}</div>
@@ -611,7 +710,7 @@ function App() {
                         <div className="flex flex-col">
                           <span className="font-bold text-gray-800 text-lg">{item.nombre}</span>
                           {diferencia < -0.01 && <span className="text-xs text-orange-500 font-bold">Precio original: ${precioOriginal.toFixed(2)}</span>}
-                          {diferencia > 0.01 && <span className="text-xs text-red-600 font-bold">Recargo: +${diferencia.toFixed(2)}</span>}
+                          {diferencia > 0.01 && <span className="text-xs text-red-600 font-bold">Recargo manual: +${diferencia.toFixed(2)}</span>}
                         </div>
                         <button onClick={() => eliminarItem(item.codigo)} className="bg-red-100 text-red-600 font-bold px-3 py-1 rounded hover:bg-red-200">X</button>
                       </div>
@@ -642,7 +741,7 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-[3] bg-white rounded-xl shadow-lg flex flex-col h-[95vh] p-4">
+        <div className="flex-[3] bg-white rounded-xl shadow-lg flex flex-col h-[95vh] p-4 overflow-y-auto">
           
           <div className="bg-gray-100 p-3 rounded-lg border border-gray-300 mb-4 relative z-30">
              <div className="flex justify-between items-center mb-2">
@@ -699,20 +798,25 @@ function App() {
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto space-y-3">
+          <div className="flex-1 space-y-3">
             <div className="flex justify-between items-center text-gray-600 font-bold px-2">
               <span>Subtotal Bruto:</span>
               <span>${subtotalCarrito.toFixed(2)}</span>
             </div>
             
             <div className="flex justify-between items-center bg-orange-100 p-2 rounded-lg border border-orange-200">
-              <span className="font-bold text-orange-800 text-sm">Descuento Total (%)</span>
+              <span className="font-bold text-orange-800 text-sm">Descuento Local (%)</span>
               <input type="number" step="0.01" className="w-20 p-1 border border-orange-300 rounded text-right font-bold text-orange-700" value={descuentoTotal} onChange={(e) => setDescuentoTotal(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
 
             <div className="flex flex-col bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm mt-4">
               <span className="text-lg font-bold text-blue-900">TOTAL A PAGAR</span>
               <span className="text-4xl font-black text-blue-700 text-right">${totalFinalCalculado.toFixed(2)}</span>
+              {montoRecargoTarjeta > 0 && (
+                <span className="text-xs font-bold text-purple-700 text-right mt-1">
+                  (Incluye +${montoRecargoTarjeta.toFixed(2)} de recargo por tarjeta)
+                </span>
+              )}
             </div>
           </div>
 
@@ -720,8 +824,8 @@ function App() {
             <div className="flex flex-col gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
               <span className="font-bold text-gray-800 uppercase text-xs">Condición:</span>
               <div className="flex gap-2">
-                <button onClick={() => { setCondicionPago('CONTADO'); setMetodoPago(null); }} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${condicionPago === 'CONTADO' ? 'bg-green-600 text-white border-green-700' : 'bg-white text-gray-700'}`}>CONTADO</button>
-                <button onClick={() => { setCondicionPago('CUENTA_CORRIENTE'); setMetodoPago(null); }} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${condicionPago === 'CUENTA_CORRIENTE' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-gray-700'}`}>CTA. CORRIENTE</button>
+                <button onClick={() => { setCondicionPago('CONTADO'); setMetodoPago(null); setCuotasSeleccionadas(1); }} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${condicionPago === 'CONTADO' ? 'bg-green-600 text-white border-green-700' : 'bg-white text-gray-700'}`}>CONTADO</button>
+                <button onClick={() => { setCondicionPago('CUENTA_CORRIENTE'); setMetodoPago(null); setCuotasSeleccionadas(1); }} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${condicionPago === 'CUENTA_CORRIENTE' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-gray-700'}`}>CTA. CORRIENTE</button>
               </div>
             </div>
 
@@ -729,9 +833,36 @@ function App() {
               <div className="flex flex-col gap-2 bg-blue-50 p-2 rounded-lg border border-blue-200">
                 <span className="font-bold text-blue-900 uppercase text-xs">Método:</span>
                 <div className="flex gap-2">
-                  <button onClick={() => setMetodoPago('EFECTIVO')} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${metodoPago === 'EFECTIVO' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-blue-800'}`}>EFECTIVO</button>
-                  <button onClick={() => setMetodoPago('TARJETA')} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${metodoPago === 'TARJETA' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-blue-800'}`}>TARJETA</button>
+                  <button onClick={() => { setMetodoPago('EFECTIVO'); setCuotasSeleccionadas(1); }} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${metodoPago === 'EFECTIVO' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-blue-800'}`}>EFECTIVO</button>
+                  <button onClick={() => { setMetodoPago('TARJETA'); setCuotasSeleccionadas(1); }} className={`flex-1 py-2 rounded font-bold shadow-sm text-xs border ${metodoPago === 'TARJETA' ? 'bg-purple-600 text-white border-purple-700' : 'bg-white text-purple-800'}`}>TARJETA</button>
                 </div>
+              </div>
+            )}
+
+            {/* PANEL DE CUOTAS (SOLO SI ES TARJETA) */}
+            {condicionPago === 'CONTADO' && metodoPago === 'TARJETA' && (
+              <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 shadow-inner">
+                <span className="font-bold text-purple-900 text-xs uppercase block mb-1">Seleccione Cuotas:</span>
+                <select 
+                  className="w-full p-2 border-2 border-purple-300 rounded font-black text-purple-900 bg-white focus:outline-none focus:border-purple-500"
+                  value={cuotasSeleccionadas}
+                  onChange={(e) => setCuotasSeleccionadas(parseInt(e.target.value))}
+                >
+                  {tablaCuotas.map(c => (
+                    <option key={c.cuotas} value={c.cuotas}>
+                      {c.cuotas} {c.cuotas === 1 ? 'Pago' : 'Cuotas'} {c.interes > 0 ? `(+${c.interes}%)` : '(Sin interés)'}
+                    </option>
+                  ))}
+                </select>
+
+                {cuotasSeleccionadas > 1 && (
+                  <div className="mt-2 text-center bg-white p-2 rounded border border-purple-200">
+                    <span className="block text-xs text-purple-600 font-bold uppercase">El cliente abonará</span>
+                    <span className="block text-xl font-black text-purple-800">
+                      {cuotasSeleccionadas} cuotas de ${valorCuota.toFixed(2)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -757,9 +888,6 @@ function App() {
       {ticketAImprimir && (
         <div className="hidden print:block text-black font-mono text-sm bg-white" style={{ width: '80mm', margin: '0', padding: '0', lineHeight: '1.2' }}>
           
-          {/* ----------------------------------------------------
-              1. DISEÑO C. VENTA Y PRESUPUESTO (NO SE TOCA)
-              ---------------------------------------------------- */}
           {(ticketAImprimir.tipo_crudo === 'comprobante_venta' || ticketAImprimir.tipo_crudo === 'presupuesto') && (
             <div className="pt-2">
               <div className="text-xs uppercase mb-2 leading-tight">
@@ -819,9 +947,6 @@ function App() {
             </div>
           )}
 
-          {/* ----------------------------------------------------
-              2. DISEÑO FACTURA OFICIAL (A/B)
-              ---------------------------------------------------- */}
           {ticketAImprimir.tipo_crudo === 'factura' && (
             <div className="pt-2">
               <div className="text-xs uppercase mb-2 leading-tight">
@@ -851,7 +976,7 @@ function App() {
                 )}
                 <p>CLIENTE: {ticketAImprimir.cliente.nombre}</p>
                 <p>CATEGORIA FISCAL: {ticketAImprimir.cliente.categoria_iva}</p>
-                <p>FECHA: {ticketAImprimir.fecha.split(',')[0].trim()}HORA: {ticketAImprimir.fecha.split(',')[1].trim().substring(0, 5)}</p>
+                <p>FECHA: {ticketAImprimir.fecha.split(',')[0].trim()} HORA: {ticketAImprimir.fecha.split(',')[1].trim().substring(0, 5)}</p>
               </div>
 
               <p className="border-t border-black border-dashed mb-1"></p>

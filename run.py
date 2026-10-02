@@ -3,11 +3,13 @@ import sqlite3
 import difflib
 import traceback
 import requests
+import threading  # <-- LIBRERÍA NUEVA PARA SEGUNDO PLANO
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
 from app.dux_api import enviar_documento_dux, consultar_numero_comprobante
+from sincronizador import sincronizar_catalogo  # <-- IMPORTAMOS EL SCRIPT
 
 load_dotenv()
 
@@ -43,9 +45,17 @@ def preparar_base_datos():
         cursor = conn.cursor()
         cursor.execute("ALTER TABLE productos ADD COLUMN ventas INTEGER DEFAULT 0")
         conn.commit()
+    except sqlite3.OperationalError: pass
+    
+    try:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute("ALTER TABLE productos ADD COLUMN precio_anterior REAL DEFAULT 0")
+        cursor.execute("ALTER TABLE productos ADD COLUMN fecha_actualizacion TEXT")
+        conn.commit()
+    except sqlite3.OperationalError: pass
+    finally:
         conn.close()
-    except sqlite3.OperationalError:
-        pass
 
 preparar_base_datos()
 
@@ -156,8 +166,10 @@ def buscar_productos():
         terminos = query.split()
         condiciones_producto = " AND ".join(["lower(producto) LIKE ?"] * len(terminos))
         parametros_producto = [f"%{t}%" for t in terminos]
+        
         query_sql = f'''
-            SELECT codigo, codigo_barra, producto, producto AS nombre, producto AS descripcion, producto AS Producto, precio, ventas, iva 
+            SELECT codigo, codigo_barra, producto, producto AS nombre, producto AS descripcion, 
+                   producto AS Producto, precio, ventas, iva, precio_anterior, fecha_actualizacion 
             FROM productos 
             WHERE ({condiciones_producto}) OR codigo LIKE ? OR codigo_barra LIKE ?
             ORDER BY ventas DESC LIMIT 30
@@ -207,15 +219,20 @@ def rastrear_numero():
     tipo = request.args.get('tipo', 'factura')
     total = request.args.get('total')
     
-    if not id_dux:
-        return jsonify({"numero": None})
-        
+    if not id_dux: return jsonify({"numero": None})
     resultado = consultar_numero_comprobante(id_dux, tipo, total)
-    
-    if isinstance(resultado, dict):
-        return jsonify(resultado)
-        
+    if isinstance(resultado, dict): return jsonify(resultado)
     return jsonify({"numero": resultado})
+
+# --- NUEVA RUTA PARA EL BOTÓN DE REACT ---
+@app.route('/api/sincronizar', methods=['POST'])
+def iniciar_sincronizacion():
+    try:
+        hilo = threading.Thread(target=sincronizar_catalogo)
+        hilo.start()
+        return jsonify({"status": "ok", "mensaje": "Sincronización lanzada en segundo plano"})
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
