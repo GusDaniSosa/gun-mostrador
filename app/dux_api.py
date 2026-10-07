@@ -61,6 +61,9 @@ def enviar_documento_dux(datos_venta):
     
     condicion_pago = datos_venta.get('condicion_pago') 
     metodo_pago = datos_venta.get('metodo_pago') 
+    
+    # Extraemos las observaciones de React
+    observaciones_venta = datos_venta.get('observaciones', '').strip()
 
     cliente = datos_venta.get('cliente', {})
     id_cliente_final = cliente.get('id') or 14020175
@@ -98,11 +101,15 @@ def enviar_documento_dux(datos_venta):
         })
 
     payload = {
-        "id_empresa": int(EMPRESA_ID),         
+        "id_empresa": int(EMPRESA_ID),        
         "id_sucursal": 1,                      
         "id_cliente": int(id_cliente_final),                
         "descuento_global": float(descuento_global)
     }
+
+    # --- INYECCIÓN DEL CAMPO OBSERVACIONES ---
+    if observaciones_venta:
+        payload["observaciones"] = observaciones_venta
 
     if id_personal:
         payload["id_personal"] = int(id_personal)

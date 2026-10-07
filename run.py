@@ -3,13 +3,13 @@ import sqlite3
 import difflib
 import traceback
 import requests
-import threading  # <-- LIBRERÍA NUEVA PARA SEGUNDO PLANO
+import threading
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
 from app.dux_api import enviar_documento_dux, consultar_numero_comprobante
-from sincronizador import sincronizar_catalogo  # <-- IMPORTAMOS EL SCRIPT
+from sincronizador import sincronizar_catalogo 
 
 load_dotenv()
 
@@ -54,6 +54,21 @@ def preparar_base_datos():
         cursor.execute("ALTER TABLE productos ADD COLUMN fecha_actualizacion TEXT")
         conn.commit()
     except sqlite3.OperationalError: pass
+
+    # --- NUEVA TABLA: LA BÓVEDA DEL DICCIONARIO ---
+    try:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS diccionario (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                callejera TEXT UNIQUE,
+                oficial TEXT
+            )
+        ''')
+        conn.commit()
+    except Exception as e: 
+        print(f"Error creando diccionario: {e}")
     finally:
         conn.close()
 
@@ -156,14 +171,50 @@ def actualizar_cliente(id_cliente):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/productos', methods=['GET'])
-def buscar_productos():
-    query = request.args.get('q', '').lower().strip()
-    if not query: return jsonify({"resultados": [], "sugerencia": None})
+# --- NUEVA RUTA: GUARDAR PALABRAS EN EL DICCIONARIO ---
+@app.route('/api/diccionario', methods=['POST'])
+def agregar_diccionario():
+    datos = request.json
+    callejera = datos.get('callejera', '').strip().lower()
+    oficial = datos.get('oficial', '').strip().lower()
+    
+    if not callejera or not oficial:
+        return jsonify({"error": "Faltan datos"}), 400
+        
     try:
         conn = obtener_conexion()
         cursor = conn.cursor()
-        terminos = query.split()
+        cursor.execute("INSERT OR REPLACE INTO diccionario (callejera, oficial) VALUES (?, ?)", (callejera, oficial))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok", "mensaje": "Sinónimo guardado exitosamente"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/productos', methods=['GET'])
+def buscar_productos():
+    query_original = request.args.get('q', '').lower().strip()
+    if not query_original: return jsonify({"resultados": [], "sugerencia": None, "traduccion": None})
+    try:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        
+        # --- EL INTERCEPTOR DE BÚSQUEDA ---
+        cursor.execute("SELECT callejera, oficial FROM diccionario")
+        diccionario_db = cursor.fetchall()
+        
+        query_traducida = query_original
+        texto_traducido_aviso = None
+        
+        for fila in diccionario_db:
+            calle = str(fila['callejera']).lower().strip()
+            oficial = str(fila['oficial']).lower().strip()
+            # Si el "lenguaje de calle" está dentro de lo que escribió el cajero, lo reemplaza
+            if calle and calle in query_traducida:
+                query_traducida = query_traducida.replace(calle, oficial)
+                texto_traducido_aviso = oficial.upper() # Prepara el aviso para React
+        
+        terminos = query_traducida.split()
         condiciones_producto = " AND ".join(["lower(producto) LIKE ?"] * len(terminos))
         parametros_producto = [f"%{t}%" for t in terminos]
         
@@ -174,7 +225,8 @@ def buscar_productos():
             WHERE ({condiciones_producto}) OR codigo LIKE ? OR codigo_barra LIKE ?
             ORDER BY ventas DESC LIMIT 30
         '''
-        parametros_totales = parametros_producto + [f"%{query}%", f"%{query}%"]
+        # Usamos el query_original para los códigos de barra por si pistolean
+        parametros_totales = parametros_producto + [f"%{query_original}%", f"%{query_original}%"]
         cursor.execute(query_sql, parametros_totales)
         filas = cursor.fetchall()
         conn.close()
@@ -191,7 +243,13 @@ def buscar_productos():
                     hubo_cambio = True
                 else: terminos_sugeridos.append(term)
             if hubo_cambio: sugerencia = " ".join(terminos_sugeridos).upper()
-        return jsonify({"resultados": resultados, "sugerencia": sugerencia})
+            
+        # Devolvemos a React los resultados, y le avisamos si usamos el traductor
+        return jsonify({
+            "resultados": resultados, 
+            "sugerencia": sugerencia,
+            "traduccion": texto_traducido_aviso 
+        })
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -224,7 +282,6 @@ def rastrear_numero():
     if isinstance(resultado, dict): return jsonify(resultado)
     return jsonify({"numero": resultado})
 
-# --- NUEVA RUTA PARA EL BOTÓN DE REACT ---
 @app.route('/api/sincronizar', methods=['POST'])
 def iniciar_sincronizacion():
     try:

@@ -57,6 +57,161 @@ const tablaCuotas = [
 ];
 
 // ==========================================
+// MODAL DE DICCIONARIO (MODO HÍBRIDO)
+// ==========================================
+const ModalDiccionario = ({ onClose }) => {
+  const [modo, setModo] = useState('familia'); // 'familia' o 'exacto'
+  
+  const [terminoOficial, setTerminoOficial] = useState('');
+  const [terminoCallejero, setTerminoCallejero] = useState('');
+  
+  const [busquedaExacta, setBusquedaExacta] = useState('');
+  const [resultadosExactos, setResultadosExactos] = useState([]);
+  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+  
+  const [guardando, setGuardando] = useState(false);
+
+  const buscarExacto = async (texto) => {
+    setBusquedaExacta(texto);
+    if (texto.trim().length < 2) {
+      setResultadosExactos([]);
+      return;
+    }
+    try {
+      const res = await fetch(`http://192.168.88.250:5000/api/productos?q=${texto}`);
+      if (res.ok) {
+        const datos = await res.json();
+        setResultadosExactos(datos.resultados || []);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const guardarSinonimo = async (e) => {
+    e.preventDefault();
+    
+    let oficialFinal = '';
+    if (modo === 'familia') {
+      oficialFinal = terminoOficial.trim().toUpperCase();
+    } else {
+      if (!productoSeleccionado) return alert("⚠️ Seleccioná un producto de la lista primero.");
+      oficialFinal = productoSeleccionado.nombre; 
+    }
+
+    if (!oficialFinal || !terminoCallejero.trim()) return alert("⚠️ Completá todos los campos.");
+    
+    setGuardando(true);
+    try {
+      const res = await fetch('http://192.168.88.250:5000/api/diccionario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callejera: terminoCallejero.toLowerCase(),
+          oficial: oficialFinal 
+        })
+      });
+      if (res.ok) {
+        alert(modo === 'familia' 
+          ? "✅ Familia aprendida. Funcionará con todas las medidas." 
+          : "✅ Producto exacto aprendido.");
+        onClose();
+      } else {
+        alert("❌ Error al guardar en la base de datos.");
+      }
+    } catch (error) {
+      alert("Error de conexión con el servidor Python.");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[100]">
+      <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg">
+        <h2 className="text-2xl font-black mb-4 text-blue-800 border-b pb-2">
+          📖 Enseñar al Sistema
+        </h2>
+        
+        {/* SELECTOR DE MODO */}
+        <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-lg">
+          <button 
+            type="button"
+            onClick={() => { setModo('familia'); setTerminoCallejero(''); }}
+            className={`flex-1 py-2 font-bold text-sm rounded transition-colors ${modo === 'familia' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}
+          >
+            📂 Familia (Varias medidas)
+          </button>
+          <button 
+            type="button"
+            onClick={() => { setModo('exacto'); setTerminoCallejero(''); }}
+            className={`flex-1 py-2 font-bold text-sm rounded transition-colors ${modo === 'exacto' ? 'bg-green-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}
+          >
+            🎯 Producto Exacto (Único)
+          </button>
+        </div>
+
+        <form onSubmit={guardarSinonimo} className="flex flex-col gap-4">
+          
+          {modo === 'familia' ? (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <label className="text-xs font-bold text-blue-800 block mb-1">Palabra Oficial (Ej: ENTRE ROSCA)</label>
+              <input 
+                type="text" value={terminoOficial} onChange={(e) => setTerminoOficial(e.target.value.toUpperCase())} 
+                className="w-full p-2 border-2 border-blue-300 rounded-lg font-bold outline-none focus:border-blue-500 bg-white" 
+                placeholder="Ej: ENTRE ROSCA" autoFocus
+              />
+            </div>
+          ) : (
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200 relative">
+              <label className="text-xs font-bold text-green-800 block mb-1">Buscá el Producto Único Exacto</label>
+              {productoSeleccionado ? (
+                <div className="p-2 bg-white border-2 border-green-400 rounded-lg flex justify-between items-center shadow-sm">
+                  <span className="font-bold text-green-900 text-xs">{productoSeleccionado.nombre}</span>
+                  <button type="button" onClick={() => setProductoSeleccionado(null)} className="text-red-500 font-black hover:text-red-700 px-2">X</button>
+                </div>
+              ) : (
+                <>
+                  <input 
+                    type="text" value={busquedaExacta} onChange={(e) => buscarExacto(e.target.value)} 
+                    className="w-full p-2 border-2 border-green-300 rounded-lg font-bold outline-none focus:border-green-500 bg-white" 
+                    placeholder="Escribí para buscar..." autoFocus
+                  />
+                  {resultadosExactos.length > 0 && (
+                    <ul className="absolute top-full left-0 w-full bg-white border border-gray-300 shadow-2xl rounded-b-lg mt-1 max-h-48 overflow-y-auto z-50">
+                      {resultadosExactos.map((prod, idx) => (
+                        <li key={idx} onClick={() => { setProductoSeleccionado(prod); setResultadosExactos([]); setBusquedaExacta(''); }} className="p-3 border-b hover:bg-green-50 cursor-pointer font-bold text-xs text-gray-800 flex justify-between">
+                          <span>{prod.nombre}</span>
+                          <span className="text-green-700">${prod.precio}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 mt-2">
+            <label className="text-xs font-bold text-orange-800 block mb-1">¿Cómo lo pide el cliente en el mostrador?</label>
+            <input 
+              type="text" value={terminoCallejero} onChange={(e) => setTerminoCallejero(e.target.value.toLowerCase())} 
+              className="w-full p-3 border-2 border-orange-300 rounded-lg font-bold outline-none focus:border-orange-500 bg-white text-orange-900" 
+              placeholder="Ej: rosca con tuerca" 
+            />
+          </div>
+          
+          <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+            <button type="button" onClick={onClose} disabled={guardando} className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded hover:bg-gray-300 transition-colors">Cancelar</button>
+            <button type="submit" disabled={guardando || (!terminoOficial && !productoSeleccionado) || !terminoCallejero} className="px-6 py-2 bg-blue-600 text-white font-black rounded shadow hover:bg-blue-700 transition-colors disabled:bg-blue-300">
+              {guardando ? 'Guardando...' : '💾 Aprender Sinónimo'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
 // MODAL DE CLIENTE
 // ==========================================
 const ModalCliente = ({ clienteAEditar, onClose, onGuardarExito }) => {
@@ -152,7 +307,7 @@ const ModalCliente = ({ clienteAEditar, onClose, onGuardarExito }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100]">
       <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-black mb-4 text-gray-800 border-b pb-2">
-          {idDestino ? '✏️ Editar Cliente' : '👤 Nuevo Cliente'}
+          {idDestino ? '✏️️ Editar Cliente' : '👤 Nuevo Cliente'}
         </h2>
         
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -225,7 +380,12 @@ function App() {
   const [sugerencia, setSugerencia] = useState(null);
   const [carrito, setCarrito] = useState([]);
   const [descuentoTotal, setDescuentoTotal] = useState(0);
+  const [observaciones, setObservaciones] = useState('');
+  
   const [mostrarModalABM, setMostrarModalABM] = useState(false);
+  const [mostrarModalDiccionario, setMostrarModalDiccionario] = useState(false);
+  const [traduccionActiva, setTraduccionActiva] = useState(null);
+
   const [clienteAEditar, setClienteAEditar] = useState(null);
 
   const [pendientes, setPendientes] = useState([]);
@@ -245,7 +405,6 @@ function App() {
   const [condicionPago, setCondicionPago] = useState(null);
   const [metodoPago, setMetodoPago] = useState(null);
   
-  // ESTADO NUEVO PARA LAS CUOTAS
   const [cuotasSeleccionadas, setCuotasSeleccionadas] = useState(1);
 
   const listaVendedores = [
@@ -337,6 +496,7 @@ function App() {
         const datos = await respuesta.json();
         setResultados(datos.resultados || []);
         setSugerencia(datos.sugerencia || null);
+        setTraduccionActiva(datos.traduccion || null);
       }
     } catch (error) { console.error("Error backend:", error); }
   };
@@ -347,6 +507,7 @@ function App() {
     if (texto.trim() === '') {
       setResultados([]);
       setSugerencia(null);
+      setTraduccionActiva(null);
       return;
     }
     ejecutarBusqueda(texto);
@@ -383,6 +544,7 @@ function App() {
     setBusqueda('');
     setResultados([]);
     setSugerencia(null);
+    setTraduccionActiva(null);
   };
 
   const modificarItem = (codigo, campo, valor) => {
@@ -414,7 +576,6 @@ function App() {
     return (parseFloat(item.cantidad) || 0) * (parseFloat(item.precio_cobrado) || 0);
   };
 
-  // --- CÁLCULO MÁGICO DE TOTALES E INTERESES ---
   const subtotalCarrito = carrito.reduce((sum, item) => sum + calcularSubtotalItem(item), 0);
   const totalConDescuento = subtotalCarrito * (1 - ((parseFloat(descuentoTotal) || 0) / 100));
 
@@ -461,8 +622,6 @@ function App() {
       if (condicionPago === 'CONTADO' && !metodoPago) return alert("⚠️ Indicá EFECTIVO o TARJETA.");
     }
 
-    // --- PROCESAMIENTO INVISIBLE PARA DUX Y AFIP ---
-    // Si hay interés, inflamos el precio individual de cada producto para que cuadre todo
     let carritoProcesado = carrito;
     let subtotalProcesado = subtotalCarrito;
 
@@ -475,7 +634,6 @@ function App() {
       subtotalProcesado = carritoProcesado.reduce((sum, item) => sum + (item.cantidad * parseFloat(item.precio_cobrado)), 0);
     }
 
-    // Recalculamos el total exacto basándonos en los precios inflados para evitar diferencias de 1 centavo
     const totalFinalDux = subtotalProcesado * (1 - ((parseFloat(descuentoTotal) || 0) / 100));
 
     const paquete_dux = {
@@ -486,7 +644,8 @@ function App() {
       id_personal: vendedor,
       condicion_pago: condicionPago, 
       metodo_pago: metodoPago,       
-      total_final: totalFinalDux.toFixed(2) 
+      total_final: totalFinalDux.toFixed(2),
+      observaciones: observaciones 
     };
 
     setPantallaCarga({ activo: true, mensaje: 'Guardando en DUX...' });
@@ -527,7 +686,8 @@ function App() {
                   total: totalFinalDux,
                   numero_dux: 'S/N',
                   cae: null,
-                  vto: null
+                  vto: null,
+                  observaciones: observaciones 
                }
             };
 
@@ -542,6 +702,7 @@ function App() {
             setCondicionPago(null); 
             setMetodoPago(null); 
             setCuotasSeleccionadas(1);
+            setObservaciones('');
             setClienteActual(clientePorDefecto);
             setPantallaCarga({ activo: false, mensaje: '' });
             return; 
@@ -568,7 +729,8 @@ function App() {
               subtotal: subtotalProcesado,
               descuento: descuentoTotal,
               total: totalFinalDux,
-              numero_dux: numeroTicket 
+              numero_dux: numeroTicket,
+              observaciones: observaciones 
             });
 
             setCarrito([]);
@@ -578,6 +740,7 @@ function App() {
             setCondicionPago(null); 
             setMetodoPago(null); 
             setCuotasSeleccionadas(1);
+            setObservaciones('');
             setClienteActual(clientePorDefecto);
             setPantallaCarga({ activo: false, mensaje: '' });
 
@@ -630,7 +793,7 @@ function App() {
                               </div>
                               <div className="flex gap-2">
                                   {p.estado === 'listo' && (
-                                      <button onClick={() => imprimirPendiente(p)} className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded shadow">🖨️️ Imprimir</button>
+                                      <button onClick={() => imprimirPendiente(p)} className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded shadow">🖨 Imprimir</button>
                                   )}
                                   <button onClick={() => borrarPendiente(p.id)} className="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded shadow-sm">Borrar</button>
                               </div>
@@ -651,6 +814,9 @@ function App() {
                <button onClick={ejecutarSincronizacionManual} disabled={sincronizando} className={`px-3 py-1 text-sm font-bold rounded transition-colors shadow-sm border border-blue-500 ${sincronizando ? 'bg-blue-800 text-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
                   {sincronizando ? '⏳ Sincronizando...' : '🔄 Actualizar Precios'}
                </button>
+               <button onClick={() => setMostrarModalDiccionario(true)} className="px-3 py-1 text-sm font-bold rounded transition-colors shadow-sm bg-blue-900 border border-blue-800 hover:bg-blue-800 text-blue-100">
+                  📖 Enseñar Sinónimo
+               </button>
             </div>
             
             <button onClick={() => setMostrarPanelPendientes(true)} className={`font-bold px-4 py-2 rounded shadow-md border-2 transition-colors ${pendientes.some(p => p.estado === 'listo') ? 'bg-green-500 hover:bg-green-600 border-white text-white animate-bounce' : pendientes.length > 0 ? 'bg-orange-500 hover:bg-orange-600 border-white text-white' : 'bg-blue-800 text-blue-300 border-transparent'}`}>
@@ -663,6 +829,13 @@ function App() {
             
             {(resultados.length > 0 || sugerencia || busqueda.trim() !== '') && (
               <div className="absolute top-full left-0 w-full bg-white shadow-2xl z-50 max-h-[50vh] overflow-y-auto border border-gray-300 rounded-b-xl">
+                
+                {traduccionActiva && (
+                  <div className="bg-blue-100 p-2 text-blue-800 text-center font-bold text-sm border-b border-blue-200">
+                    💡 Entendimos que buscabas: <span className="font-black text-blue-900">{traduccionActiva}</span>
+                  </div>
+                )}
+
                 {resultados.length === 0 ? (
                   <div className="p-4 flex flex-col items-center justify-center">
                     {sugerencia ? (
@@ -809,7 +982,7 @@ function App() {
               <input type="number" step="0.01" className="w-20 p-1 border border-orange-300 rounded text-right font-bold text-orange-700" value={descuentoTotal} onChange={(e) => setDescuentoTotal(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
 
-            <div className="flex flex-col bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm mt-4">
+            <div className="flex flex-col bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm mt-2">
               <span className="text-lg font-bold text-blue-900">TOTAL A PAGAR</span>
               <span className="text-4xl font-black text-blue-700 text-right">${totalFinalCalculado.toFixed(2)}</span>
               {montoRecargoTarjeta > 0 && (
@@ -821,6 +994,18 @@ function App() {
           </div>
 
           <div className="mt-4 pt-4 border-t flex flex-col gap-3">
+            
+            <div className="flex flex-col bg-yellow-50 p-2 rounded-lg border border-yellow-200">
+              <span className="font-bold text-yellow-800 uppercase text-[10px] mb-1 tracking-wide">📝 Observaciones del Pedido (Opcional)</span>
+              <textarea 
+                className="w-full p-2 border border-yellow-300 rounded text-sm bg-white focus:outline-none focus:border-yellow-500" 
+                rows="1" 
+                placeholder="Ej: Entregar a las 17hs, Lleva el fletero..." 
+                value={observaciones} 
+                onChange={(e) => setObservaciones(e.target.value)}
+              ></textarea>
+            </div>
+
             <div className="flex flex-col gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
               <span className="font-bold text-gray-800 uppercase text-xs">Condición:</span>
               <div className="flex gap-2">
@@ -839,7 +1024,6 @@ function App() {
               </div>
             )}
 
-            {/* PANEL DE CUOTAS (SOLO SI ES TARJETA) */}
             {condicionPago === 'CONTADO' && metodoPago === 'TARJETA' && (
               <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 shadow-inner">
                 <span className="font-bold text-purple-900 text-xs uppercase block mb-1">Seleccione Cuotas:</span>
@@ -880,6 +1064,11 @@ function App() {
         {mostrarModalABM && (
           <ModalCliente clienteAEditar={clienteAEditar} onClose={() => setMostrarModalABM(false)} onGuardarExito={(datosFrescos) => { if (datosFrescos) setClienteActual(datosFrescos); }} />
         )}
+        
+        {mostrarModalDiccionario && (
+          <ModalDiccionario onClose={() => setMostrarModalDiccionario(false)} />
+        )}
+
       </div>
 
       {/* ==========================================
@@ -939,6 +1128,13 @@ function App() {
                   <p>$ {ticketAImprimir.total.toFixed(2).replace('.', ',')}</p>
                 </div>
               </div>
+
+              {ticketAImprimir.observaciones && ticketAImprimir.observaciones.trim() !== '' && (
+                <div className="text-xs mt-3 border-t border-black border-dashed pt-1">
+                  <p className="font-bold">OBSERVACIONES:</p>
+                  <p className="whitespace-pre-wrap">{ticketAImprimir.observaciones.toUpperCase()}</p>
+                </div>
+              )}
 
               <div className="text-center mt-4 text-xs">
                 <p>GRACIAS POR SU COMPRA</p>
@@ -1017,6 +1213,13 @@ function App() {
                 <div className="flex justify-between"><p>DESCUENTO:</p><p>$ {((ticketAImprimir.subtotal * (ticketAImprimir.descuento / 100)) || 0).toFixed(2).replace('.', ',')}</p></div>
                 <div className="flex justify-between font-bold text-sm mt-1"><p>TOTAL:</p><p>$ {ticketAImprimir.total.toFixed(2).replace('.', ',')}</p></div>
               </div>
+
+              {ticketAImprimir.observaciones && ticketAImprimir.observaciones.trim() !== '' && (
+                <div className="text-xs mt-3 border-t border-black border-dashed pt-1">
+                  <p className="font-bold">OBSERVACIONES:</p>
+                  <p className="whitespace-pre-wrap">{ticketAImprimir.observaciones.toUpperCase()}</p>
+                </div>
+              )}
 
               <div className="text-center mt-6 text-xs font-bold">
                 <p>GRACIAS POR SU COMPRA</p>
