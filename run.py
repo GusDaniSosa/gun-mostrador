@@ -4,9 +4,10 @@ import difflib
 import traceback
 import requests
 import threading
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
+from PIL import Image  # <-- La librería mágica para recortar fotos
 
 from app.dux_api import enviar_documento_dux, consultar_numero_comprobante
 from sincronizador import sincronizar_catalogo 
@@ -18,6 +19,10 @@ CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'productos.db')
+
+# --- CARPETA MÁGICA PARA IMÁGENES ---
+IMG_DIR = os.path.join(BASE_DIR, 'imagenes_productos')
+os.makedirs(IMG_DIR, exist_ok=True)
 
 print("\n" + "="*50)
 print("🚀 INICIANDO SERVIDOR GUN")
@@ -32,6 +37,7 @@ else:
         conn.close()
     except Exception as e:
         print(f"❌ ERROR: {e}")
+print(f"📁 Carpeta de imágenes lista en: {IMG_DIR}")
 print("="*50 + "\n")
 
 def obtener_conexion():
@@ -55,7 +61,6 @@ def preparar_base_datos():
         conn.commit()
     except sqlite3.OperationalError: pass
 
-    # --- NUEVA TABLA: LA BÓVEDA DEL DICCIONARIO ---
     try:
         conn = obtener_conexion()
         cursor = conn.cursor()
@@ -171,7 +176,6 @@ def actualizar_cliente(id_cliente):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- NUEVA RUTA: GUARDAR PALABRAS EN EL DICCIONARIO ---
 @app.route('/api/diccionario', methods=['POST'])
 def agregar_diccionario():
     datos = request.json
@@ -199,7 +203,6 @@ def buscar_productos():
         conn = obtener_conexion()
         cursor = conn.cursor()
         
-        # --- EL INTERCEPTOR DE BÚSQUEDA ---
         cursor.execute("SELECT callejera, oficial FROM diccionario")
         diccionario_db = cursor.fetchall()
         
@@ -209,10 +212,9 @@ def buscar_productos():
         for fila in diccionario_db:
             calle = str(fila['callejera']).lower().strip()
             oficial = str(fila['oficial']).lower().strip()
-            # Si el "lenguaje de calle" está dentro de lo que escribió el cajero, lo reemplaza
             if calle and calle in query_traducida:
                 query_traducida = query_traducida.replace(calle, oficial)
-                texto_traducido_aviso = oficial.upper() # Prepara el aviso para React
+                texto_traducido_aviso = oficial.upper() 
         
         terminos = query_traducida.split()
         condiciones_producto = " AND ".join(["lower(producto) LIKE ?"] * len(terminos))
@@ -225,15 +227,24 @@ def buscar_productos():
             WHERE ({condiciones_producto}) OR codigo LIKE ? OR codigo_barra LIKE ?
             ORDER BY ventas DESC LIMIT 30
         '''
-        # Usamos el query_original para los códigos de barra por si pistolean
         parametros_totales = parametros_producto + [f"%{query_original}%", f"%{query_original}%"]
         cursor.execute(query_sql, parametros_totales)
         filas = cursor.fetchall()
         conn.close()
-        resultados = [dict(fila) for fila in filas]
+        
+        # --- VERIFICACIÓN DE IMÁGENES AL VUELO ---
+        resultados_procesados = []
+        for fila in filas:
+            prod_dict = dict(fila)
+            codigo_limpio = str(prod_dict['codigo']).strip()
+            ruta_img = os.path.join(IMG_DIR, f"{codigo_limpio}.webp")
+            
+            # Le avisa a React si la foto existe o no en el disco duro local
+            prod_dict['tiene_imagen'] = os.path.exists(ruta_img)
+            resultados_procesados.append(prod_dict)
         
         sugerencia = None
-        if not resultados and vocabulario_distribuidora:
+        if not resultados_procesados and vocabulario_distribuidora:
             terminos_sugeridos = []
             hubo_cambio = False
             for term in terminos:
@@ -244,9 +255,8 @@ def buscar_productos():
                 else: terminos_sugeridos.append(term)
             if hubo_cambio: sugerencia = " ".join(terminos_sugeridos).upper()
             
-        # Devolvemos a React los resultados, y le avisamos si usamos el traductor
         return jsonify({
-            "resultados": resultados, 
+            "resultados": resultados_procesados, 
             "sugerencia": sugerencia,
             "traduccion": texto_traducido_aviso 
         })
@@ -290,6 +300,57 @@ def iniciar_sincronizacion():
         return jsonify({"status": "ok", "mensaje": "Sincronización lanzada en segundo plano"})
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
+
+# ==========================================
+# RUTAS NUEVAS PARA IMÁGENES (SUBIDA Y LECTURA)
+# ==========================================
+
+@app.route('/api/upload_imagen', methods=['POST'])
+def subir_imagen():
+    codigo = request.form.get('codigo')
+    if not codigo: return jsonify({"error": "Falta el código del producto"}), 400
+    
+    if 'foto' not in request.files: return jsonify({"error": "No se recibió ninguna imagen"}), 400
+    
+    archivo = request.files['foto']
+    if archivo.filename == '': return jsonify({"error": "El archivo está vacío"}), 400
+    
+    try:
+        # Abrimos la imagen cruda que nos mandó la caja
+        img = Image.open(archivo)
+        
+        # Le sacamos transparencias si era PNG para evitar problemas
+        if img.mode in ('RGBA', 'P'): 
+            img = img.convert('RGB')
+            
+        # Creamos un lienzo blanco de 500x500
+        fondo_blanco = Image.new('RGB', (500, 500), (255, 255, 255))
+        
+        # Achicamos la foto original para que entre en los 500px sin deformarse
+        img.thumbnail((500, 500), Image.Resampling.LANCZOS)
+        
+        # Calculamos la matemática para pegarla justo en el centro del cuadrado blanco
+        x = (500 - img.width) // 2
+        y = (500 - img.height) // 2
+        fondo_blanco.paste(img, (x, y))
+        
+        # Limpiamos el código y guardamos en formato ultra-liviano WEBP
+        codigo_limpio = str(codigo).strip()
+        ruta_final = os.path.join(IMG_DIR, f"{codigo_limpio}.webp")
+        
+        # Quality=80 es el punto perfecto entre verse bien y pesar menos de 40 KB
+        fondo_blanco.save(ruta_final, 'WEBP', quality=80)
+        
+        return jsonify({"status": "ok", "mensaje": "Imagen procesada, centrada y guardada con éxito."})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": f"Fallo al procesar la imagen: {str(e)}"}), 500
+
+@app.route('/imagenes/<nombre_archivo>')
+def servir_imagen(nombre_archivo):
+    # Esta ruta es el "cable" para que React pueda leer la carpeta y mostrar la foto
+    return send_from_directory(IMG_DIR, nombre_archivo)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

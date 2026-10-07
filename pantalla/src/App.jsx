@@ -57,18 +57,112 @@ const tablaCuotas = [
 ];
 
 // ==========================================
+// MODAL PARA SUBIR FOTO A UN PRODUCTO (CON CTRL+V)
+// ==========================================
+const ModalSubirFoto = ({ producto, onClose, onExito }) => {
+  const [archivo, setArchivo] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [subiendo, setSubiendo] = useState(false);
+
+  // NUEVO: Escuchar el evento de pegar (Ctrl+V)
+  useEffect(() => {
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+          const file = items[i].getAsFile();
+          setArchivo(file);
+          setPreview(URL.createObjectURL(file));
+          break; 
+        }
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, []);
+
+  const manejarSeleccion = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setArchivo(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const subirAlServidor = async () => {
+    if (!archivo) return;
+    setSubiendo(true);
+    
+    const formData = new FormData();
+    formData.append('foto', archivo);
+    formData.append('codigo', producto.codigo);
+
+    try {
+      const res = await fetch('http://192.168.88.250:5000/api/upload_imagen', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        alert("✅ Foto subida y recortada mágicamente.");
+        onExito(); 
+        onClose();
+      } else {
+        alert("❌ Error al subir la foto.");
+      }
+    } catch (e) {
+      alert("Fallo la conexión con Python.");
+    } finally {
+      setSubiendo(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[200]">
+      <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm text-center">
+        <h2 className="text-xl font-black mb-2 text-blue-800 border-b pb-2">📸 Agregar Foto</h2>
+        <p className="text-sm font-bold text-gray-700 mb-4">{producto.nombre}</p>
+        
+        {preview ? (
+          <div className="mb-4">
+            <img src={preview} alt="Vista previa" className="w-48 h-48 object-cover rounded-lg border-2 border-dashed border-blue-400 mx-auto" />
+            <button onClick={() => { setArchivo(null); setPreview(null); }} className="text-red-500 text-xs font-bold mt-2 hover:underline">Quitar foto</button>
+          </div>
+        ) : (
+          <div className="mb-4">
+            <label className="cursor-pointer bg-blue-50 hover:bg-blue-100 border-2 border-dashed border-blue-300 text-blue-700 font-bold py-10 px-4 rounded-lg block">
+              <span className="block mb-2 text-2xl">📋</span>
+              PEGÁ (Ctrl+V) una imagen desde Google<br/>
+              <span className="text-xs text-gray-500 mt-2 block">o hacé clic para buscar en la PC...</span>
+              <input type="file" className="hidden" accept="image/*" onChange={manejarSeleccion} />
+            </label>
+          </div>
+        )}
+
+        <div className="flex justify-between gap-2 mt-4 pt-4 border-t">
+          <button onClick={onClose} disabled={subiendo} className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded hover:bg-gray-300 w-full">Cancelar</button>
+          <button onClick={subirAlServidor} disabled={subiendo || !archivo} className="px-4 py-2 bg-blue-600 text-white font-black rounded shadow hover:bg-blue-700 disabled:bg-blue-300 w-full">
+            {subiendo ? 'Enviando...' : 'Guardar Foto'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ==========================================
 // MODAL DE DICCIONARIO (MODO HÍBRIDO)
 // ==========================================
 const ModalDiccionario = ({ onClose }) => {
-  const [modo, setModo] = useState('familia'); // 'familia' o 'exacto'
-  
+  const [modo, setModo] = useState('familia'); 
   const [terminoOficial, setTerminoOficial] = useState('');
   const [terminoCallejero, setTerminoCallejero] = useState('');
-  
   const [busquedaExacta, setBusquedaExacta] = useState('');
   const [resultadosExactos, setResultadosExactos] = useState([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
-  
   const [guardando, setGuardando] = useState(false);
 
   const buscarExacto = async (texto) => {
@@ -88,7 +182,6 @@ const ModalDiccionario = ({ onClose }) => {
 
   const guardarSinonimo = async (e) => {
     e.preventDefault();
-    
     let oficialFinal = '';
     if (modo === 'familia') {
       oficialFinal = terminoOficial.trim().toUpperCase();
@@ -104,61 +197,31 @@ const ModalDiccionario = ({ onClose }) => {
       const res = await fetch('http://192.168.88.250:5000/api/diccionario', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          callejera: terminoCallejero.toLowerCase(),
-          oficial: oficialFinal 
-        })
+        body: JSON.stringify({ callejera: terminoCallejero.toLowerCase(), oficial: oficialFinal })
       });
       if (res.ok) {
-        alert(modo === 'familia' 
-          ? "✅ Familia aprendida. Funcionará con todas las medidas." 
-          : "✅ Producto exacto aprendido.");
+        alert(modo === 'familia' ? "✅ Familia aprendida. Funcionará con todas las medidas." : "✅ Producto exacto aprendido.");
         onClose();
-      } else {
-        alert("❌ Error al guardar en la base de datos.");
-      }
-    } catch (error) {
-      alert("Error de conexión con el servidor Python.");
-    } finally {
-      setGuardando(false);
-    }
+      } else { alert("❌ Error al guardar en la base de datos."); }
+    } catch (error) { alert("Error de conexión con el servidor Python."); } 
+    finally { setGuardando(false); }
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-[100]">
       <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg">
-        <h2 className="text-2xl font-black mb-4 text-blue-800 border-b pb-2">
-          📖 Enseñar al Sistema
-        </h2>
+        <h2 className="text-2xl font-black mb-4 text-blue-800 border-b pb-2">📖 Enseñar al Sistema</h2>
         
-        {/* SELECTOR DE MODO */}
         <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-lg">
-          <button 
-            type="button"
-            onClick={() => { setModo('familia'); setTerminoCallejero(''); }}
-            className={`flex-1 py-2 font-bold text-sm rounded transition-colors ${modo === 'familia' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}
-          >
-            📂 Familia (Varias medidas)
-          </button>
-          <button 
-            type="button"
-            onClick={() => { setModo('exacto'); setTerminoCallejero(''); }}
-            className={`flex-1 py-2 font-bold text-sm rounded transition-colors ${modo === 'exacto' ? 'bg-green-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}
-          >
-            🎯 Producto Exacto (Único)
-          </button>
+          <button type="button" onClick={() => { setModo('familia'); setTerminoCallejero(''); }} className={`flex-1 py-2 font-bold text-sm rounded transition-colors ${modo === 'familia' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}>📂 Familia (Varias medidas)</button>
+          <button type="button" onClick={() => { setModo('exacto'); setTerminoCallejero(''); }} className={`flex-1 py-2 font-bold text-sm rounded transition-colors ${modo === 'exacto' ? 'bg-green-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}>🎯 Producto Exacto (Único)</button>
         </div>
 
         <form onSubmit={guardarSinonimo} className="flex flex-col gap-4">
-          
           {modo === 'familia' ? (
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <label className="text-xs font-bold text-blue-800 block mb-1">Palabra Oficial (Ej: ENTRE ROSCA)</label>
-              <input 
-                type="text" value={terminoOficial} onChange={(e) => setTerminoOficial(e.target.value.toUpperCase())} 
-                className="w-full p-2 border-2 border-blue-300 rounded-lg font-bold outline-none focus:border-blue-500 bg-white" 
-                placeholder="Ej: ENTRE ROSCA" autoFocus
-              />
+              <input type="text" value={terminoOficial} onChange={(e) => setTerminoOficial(e.target.value.toUpperCase())} className="w-full p-2 border-2 border-blue-300 rounded-lg font-bold outline-none focus:border-blue-500 bg-white" placeholder="Ej: ENTRE ROSCA" autoFocus />
             </div>
           ) : (
             <div className="bg-green-50 p-4 rounded-lg border border-green-200 relative">
@@ -170,17 +233,12 @@ const ModalDiccionario = ({ onClose }) => {
                 </div>
               ) : (
                 <>
-                  <input 
-                    type="text" value={busquedaExacta} onChange={(e) => buscarExacto(e.target.value)} 
-                    className="w-full p-2 border-2 border-green-300 rounded-lg font-bold outline-none focus:border-green-500 bg-white" 
-                    placeholder="Escribí para buscar..." autoFocus
-                  />
+                  <input type="text" value={busquedaExacta} onChange={(e) => buscarExacto(e.target.value)} className="w-full p-2 border-2 border-green-300 rounded-lg font-bold outline-none focus:border-green-500 bg-white" placeholder="Escribí para buscar..." autoFocus />
                   {resultadosExactos.length > 0 && (
                     <ul className="absolute top-full left-0 w-full bg-white border border-gray-300 shadow-2xl rounded-b-lg mt-1 max-h-48 overflow-y-auto z-50">
                       {resultadosExactos.map((prod, idx) => (
                         <li key={idx} onClick={() => { setProductoSeleccionado(prod); setResultadosExactos([]); setBusquedaExacta(''); }} className="p-3 border-b hover:bg-green-50 cursor-pointer font-bold text-xs text-gray-800 flex justify-between">
-                          <span>{prod.nombre}</span>
-                          <span className="text-green-700">${prod.precio}</span>
+                          <span>{prod.nombre}</span><span className="text-green-700">${prod.precio}</span>
                         </li>
                       ))}
                     </ul>
@@ -192,11 +250,7 @@ const ModalDiccionario = ({ onClose }) => {
 
           <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 mt-2">
             <label className="text-xs font-bold text-orange-800 block mb-1">¿Cómo lo pide el cliente en el mostrador?</label>
-            <input 
-              type="text" value={terminoCallejero} onChange={(e) => setTerminoCallejero(e.target.value.toLowerCase())} 
-              className="w-full p-3 border-2 border-orange-300 rounded-lg font-bold outline-none focus:border-orange-500 bg-white text-orange-900" 
-              placeholder="Ej: rosca con tuerca" 
-            />
+            <input type="text" value={terminoCallejero} onChange={(e) => setTerminoCallejero(e.target.value.toLowerCase())} className="w-full p-3 border-2 border-orange-300 rounded-lg font-bold outline-none focus:border-orange-500 bg-white text-orange-900" placeholder="Ej: rosca con tuerca" />
           </div>
           
           <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
@@ -307,7 +361,7 @@ const ModalCliente = ({ clienteAEditar, onClose, onGuardarExito }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100]">
       <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-black mb-4 text-gray-800 border-b pb-2">
-          {idDestino ? '✏️️ Editar Cliente' : '👤 Nuevo Cliente'}
+          {idDestino ? '✏ Editar Cliente' : '👤 Nuevo Cliente'}
         </h2>
         
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -385,6 +439,9 @@ function App() {
   const [mostrarModalABM, setMostrarModalABM] = useState(false);
   const [mostrarModalDiccionario, setMostrarModalDiccionario] = useState(false);
   const [traduccionActiva, setTraduccionActiva] = useState(null);
+
+  const [productoParaSubirFoto, setProductoParaSubirFoto] = useState(null);
+  const [imagenHover, setImagenHover] = useState(null); 
 
   const [clienteAEditar, setClienteAEditar] = useState(null);
 
@@ -805,6 +862,22 @@ function App() {
           </div>
       )}
 
+      {imagenHover && (
+        <div 
+          className="fixed pointer-events-none z-[300] bg-white p-2 rounded-xl shadow-2xl border-4 border-blue-400"
+          style={{ 
+            top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
+            width: '400px', height: '400px'
+          }}
+        >
+          <img 
+            src={`http://192.168.88.250:5000/imagenes/${imagenHover}.webp`} 
+            alt="Producto" 
+            className="w-full h-full object-contain"
+          />
+        </div>
+      )}
+
       <div className="min-h-screen bg-gray-200 p-2 md:p-4 font-sans flex flex-col md:flex-row gap-4 touch-manipulation print:hidden">
         
         <div className="flex-[7] bg-white rounded-xl shadow-lg flex flex-col h-[95vh] relative">
@@ -850,15 +923,34 @@ function App() {
                 ) : (
                   <ul className="space-y-1 p-2">
                     {resultados.map((prod, index) => (
-                      <li key={index} onClick={() => agregarAlCarrito(prod)} className="p-4 bg-white border-b hover:bg-gray-50 flex justify-between items-center cursor-pointer">
-                        <div>
+                      <li key={index} className="p-2 bg-white border-b hover:bg-gray-50 flex justify-between items-center group">
+                        <div 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => agregarAlCarrito(prod)}
+                        >
                           <div className="font-bold text-lg text-gray-800 flex items-center">
                               {prod.nombre}
                               {obtenerEtiquetaCambio(prod)}
                           </div>
                           <p className="text-sm text-gray-500">Cód: {prod.codigo}</p>
                         </div>
-                        <div className="text-2xl font-black text-green-700">${parseFloat(prod.precio).toFixed(2)}</div>
+                        
+                        <div className="flex items-center gap-4">
+                          <button 
+                            className={`p-2 rounded-full transition-all ${prod.tiene_imagen ? 'text-blue-500 bg-blue-50 border border-blue-200 shadow-sm hover:scale-110' : 'text-gray-300 hover:text-blue-400 hover:bg-blue-50'}`}
+                            title={prod.tiene_imagen ? 'Ver foto' : 'Subir foto para este producto'}
+                            onMouseEnter={() => { if(prod.tiene_imagen) setImagenHover(prod.codigo.trim()); }}
+                            onMouseLeave={() => setImagenHover(null)}
+                            onClick={(e) => {
+                              e.stopPropagation(); 
+                              if(!prod.tiene_imagen) setProductoParaSubirFoto(prod);
+                            }}
+                          >
+                            📸
+                          </button>
+                          
+                          <div className="text-2xl font-black text-green-700 mr-2" onClick={() => agregarAlCarrito(prod)} style={{cursor: "pointer"}}>${parseFloat(prod.precio).toFixed(2)}</div>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -1067,6 +1159,17 @@ function App() {
         
         {mostrarModalDiccionario && (
           <ModalDiccionario onClose={() => setMostrarModalDiccionario(false)} />
+        )}
+
+        {/* --- MODAL PARA SUBIR FOTO --- */}
+        {productoParaSubirFoto && (
+          <ModalSubirFoto 
+            producto={productoParaSubirFoto} 
+            onClose={() => setProductoParaSubirFoto(null)} 
+            onExito={() => {
+              ejecutarBusqueda(busqueda);
+            }} 
+          />
         )}
 
       </div>
