@@ -7,7 +7,7 @@ import threading
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
-from PIL import Image  # <-- La librería mágica para recortar fotos
+from PIL import Image  
 
 from app.dux_api import enviar_documento_dux, consultar_numero_comprobante
 from sincronizador import sincronizar_catalogo 
@@ -23,6 +23,9 @@ DB_PATH = os.path.join(BASE_DIR, 'productos.db')
 # --- CARPETA MÁGICA PARA IMÁGENES ---
 IMG_DIR = os.path.join(BASE_DIR, 'imagenes_productos')
 os.makedirs(IMG_DIR, exist_ok=True)
+
+# --- NUEVO: SEMÁFORO GLOBAL DE SINCRONIZACIÓN ---
+sincronizacion_en_curso = False
 
 print("\n" + "="*50)
 print("🚀 INICIANDO SERVIDOR GUN")
@@ -232,14 +235,11 @@ def buscar_productos():
         filas = cursor.fetchall()
         conn.close()
         
-        # --- VERIFICACIÓN DE IMÁGENES AL VUELO ---
         resultados_procesados = []
         for fila in filas:
             prod_dict = dict(fila)
             codigo_limpio = str(prod_dict['codigo']).strip()
             ruta_img = os.path.join(IMG_DIR, f"{codigo_limpio}.webp")
-            
-            # Le avisa a React si la foto existe o no en el disco duro local
             prod_dict['tiene_imagen'] = os.path.exists(ruta_img)
             resultados_procesados.append(prod_dict)
         
@@ -292,65 +292,95 @@ def rastrear_numero():
     if isinstance(resultado, dict): return jsonify(resultado)
     return jsonify({"numero": resultado})
 
-@app.route('/api/sincronizar', methods=['POST'])
-def iniciar_sincronizacion():
-    try:
-        hilo = threading.Thread(target=sincronizar_catalogo)
-        hilo.start()
-        return jsonify({"status": "ok", "mensaje": "Sincronización lanzada en segundo plano"})
-    except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
-
-# ==========================================
-# RUTAS NUEVAS PARA IMÁGENES (SUBIDA Y LECTURA)
-# ==========================================
-
 @app.route('/api/upload_imagen', methods=['POST'])
 def subir_imagen():
     codigo = request.form.get('codigo')
     if not codigo: return jsonify({"error": "Falta el código del producto"}), 400
-    
     if 'foto' not in request.files: return jsonify({"error": "No se recibió ninguna imagen"}), 400
     
     archivo = request.files['foto']
     if archivo.filename == '': return jsonify({"error": "El archivo está vacío"}), 400
     
     try:
-        # Abrimos la imagen cruda que nos mandó la caja
         img = Image.open(archivo)
-        
-        # Le sacamos transparencias si era PNG para evitar problemas
         if img.mode in ('RGBA', 'P'): 
             img = img.convert('RGB')
-            
-        # Creamos un lienzo blanco de 500x500
         fondo_blanco = Image.new('RGB', (500, 500), (255, 255, 255))
-        
-        # Achicamos la foto original para que entre en los 500px sin deformarse
         img.thumbnail((500, 500), Image.Resampling.LANCZOS)
-        
-        # Calculamos la matemática para pegarla justo en el centro del cuadrado blanco
         x = (500 - img.width) // 2
         y = (500 - img.height) // 2
         fondo_blanco.paste(img, (x, y))
         
-        # Limpiamos el código y guardamos en formato ultra-liviano WEBP
         codigo_limpio = str(codigo).strip()
         ruta_final = os.path.join(IMG_DIR, f"{codigo_limpio}.webp")
-        
-        # Quality=80 es el punto perfecto entre verse bien y pesar menos de 40 KB
         fondo_blanco.save(ruta_final, 'WEBP', quality=80)
         
-        return jsonify({"status": "ok", "mensaje": "Imagen procesada, centrada y guardada con éxito."})
+        return jsonify({"status": "ok", "mensaje": "Imagen guardada."})
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": f"Fallo al procesar la imagen: {str(e)}"}), 500
+        return jsonify({"error": f"Fallo al procesar: {str(e)}"}), 500
 
 @app.route('/imagenes/<nombre_archivo>')
 def servir_imagen(nombre_archivo):
-    # Esta ruta es el "cable" para que React pueda leer la carpeta y mostrar la foto
     return send_from_directory(IMG_DIR, nombre_archivo)
 
+@app.route('/api/borrar_imagen', methods=['POST'])
+def borrar_imagen():
+    datos = request.get_json()
+    codigo = datos.get('codigo')
+    
+    if not codigo: 
+        return jsonify({"error": "Falta el código del producto"}), 400
+        
+    try:
+        codigo_limpio = str(codigo).strip()
+        ruta_final = os.path.join(IMG_DIR, f"{codigo_limpio}.webp")
+        
+        if os.path.exists(ruta_final):
+            os.remove(ruta_final)
+            return jsonify({"status": "ok", "mensaje": "Imagen eliminada físicamente del servidor."})
+        else:
+            return jsonify({"error": "La imagen no existe en el disco"}), 404
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": f"Fallo al borrar: {str(e)}"}), 500
+
+
+# ==========================================
+# RUTAS NUEVAS: CONTROL DEL SEMÁFORO DE SINCRONIZACIÓN
+# ==========================================
+
+@app.route('/api/estado_sync', methods=['GET'])
+def estado_sync():
+    # Solo le avisa a React cómo está el semáforo (Verde o Rojo)
+    global sincronizacion_en_curso
+    return jsonify({"sincronizando": sincronizacion_en_curso})
+
+def tarea_sincronizacion_protegida():
+    # Esta función envuelve a la tuya para cambiar el semáforo de forma segura
+    global sincronizacion_en_curso
+    sincronizacion_en_curso = True
+    try:
+        sincronizar_catalogo()
+    finally:
+        # Pase lo que pase (termine bien o falle), el semáforo vuelve a verde
+        sincronizacion_en_curso = False
+
+@app.route('/api/sincronizar', methods=['POST'])
+def iniciar_sincronizacion():
+    global sincronizacion_en_curso
+    
+    # Si otra caja ya apretó el botón, bloqueamos el intento
+    if sincronizacion_en_curso:
+        return jsonify({"status": "error", "mensaje": "Ya hay una sincronización descargando desde otra caja."}), 400
+        
+    try:
+        # Lanzamos el proceso envuelto en la protección del semáforo
+        hilo = threading.Thread(target=tarea_sincronizacion_protegida)
+        hilo.start()
+        return jsonify({"status": "ok", "mensaje": "Sincronización lanzada en segundo plano"})
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

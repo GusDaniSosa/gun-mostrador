@@ -14,7 +14,7 @@ ID_LISTA_PRECIO = 30567
 
 def sincronizar_catalogo():
     print("\n" + "="*50)
-    print("🚀 INICIANDO SINCRONIZACIÓN CON DETECCIÓN DE CAMBIOS (24HS)")
+    print("🚀 INICIANDO SINCRONIZACIÓN Y LIMPIEZA DE CATÁLOGO")
     print("="*50)
     
     headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
@@ -32,6 +32,10 @@ def sincronizar_catalogo():
     nuevos = 0
     actualizados = 0
     sin_cambios = 0
+    eliminados = 0
+    
+    # Lista maestra para saber qué códigos nos mandó DUX hoy
+    codigos_activos_dux = set()
 
     while True:
         print(f"📥 Escaneando bloque de {limit} productos (desde el {offset})...")
@@ -64,10 +68,17 @@ def sincronizar_catalogo():
             break 
             
         for item in items:
+            codigo = str(item.get("cod_item", "")).strip()
+            
+            # --- LIMPIEZA ACTIVA (Paso 1) ---
+            # Si el artículo viene explícitamente deshabilitado
             if not item.get("habilitado", True):
+                if codigo:
+                    cursor.execute("DELETE FROM productos WHERE codigo = ?", (codigo,))
+                    if cursor.rowcount > 0:
+                        eliminados += 1
                 continue 
                 
-            codigo = item.get("cod_item")
             nombre = str(item.get("item") or "").strip()
             iva = float(item.get("porc_iva") or 21.0)
             cod_barra = str(item.get("codigos_barra") or "").strip()
@@ -82,19 +93,19 @@ def sincronizar_catalogo():
             if not codigo or precio_final == 0.0:
                 continue 
             
+            # Guardamos el código para la limpieza profunda final
+            codigos_activos_dux.add(codigo)
+            
             # --- LÓGICA DE DETECCIÓN DE CAMBIOS ---
-            # Ahora traemos el precio viejo y el nombre viejo para comparar
             cursor.execute("SELECT codigo, precio, producto FROM productos WHERE codigo = ?", (codigo,))
             existe = cursor.fetchone()
             
-            # Formato ISO exacto para que el navegador de React lo entienda sin fallas
             fecha_hoy = datetime.now().isoformat()
             
             if existe:
                 precio_viejo = float(existe[1] or 0)
                 nombre_viejo = str(existe[2] or "").strip()
                 
-                # Si hubo variación en el precio o cambiaron la descripción
                 if abs(precio_viejo - precio_final) > 0.01 or nombre_viejo != nombre:
                     cursor.execute("""
                         UPDATE productos 
@@ -103,7 +114,6 @@ def sincronizar_catalogo():
                     """, (nombre, precio_final, iva, cod_barra, precio_viejo, fecha_hoy, codigo))
                     actualizados += 1
                 else:
-                    # Si no cambió ni una letra ni un centavo, lo ignoramos para no prender alertas falsas
                     sin_cambios += 1
             else:
                 cursor.execute("""
@@ -118,13 +128,29 @@ def sincronizar_catalogo():
         offset += limit 
         time.sleep(1.5) 
         
+    # --- LIMPIEZA PROFUNDA (Paso 2) ---
+    # Cruzamos nuestra base de datos local contra los que DUX nos dijo que existen hoy
+    print("\n🧹 Ejecutando barrido profundo de artículos fantasmas...")
+    cursor.execute("SELECT codigo FROM productos")
+    codigos_locales = [fila[0] for fila in cursor.fetchall()]
+    
+    fantasmas = 0
+    for cod_local in codigos_locales:
+        if cod_local not in codigos_activos_dux:
+            cursor.execute("DELETE FROM productos WHERE codigo = ?", (cod_local,))
+            fantasmas += 1
+            eliminados += 1
+    
+    conn.commit()
     conn.close()
+    
     print("\n" + "="*50)
-    print("✅ ESCANEO FINALIZADO")
+    print("✅ ESCANEO Y LIMPIEZA FINALIZADA")
     print(f"📦 Total procesados: {procesados}")
     print(f"🆕 Artículos nuevos: {nuevos}")
-    print(f"🔄 Artículos modificados (Cambio de Precio/Nombre): {actualizados}")
-    print(f"⏭️️ Artículos ignorados (Sin cambios): {sin_cambios}")
+    print(f"🔄 Artículos modificados: {actualizados}")
+    print(f"⏭ Artículos ignorados: {sin_cambios}")
+    print(f"🗑️ Artículos eliminados/deshabilitados: {eliminados} (Fantasmas: {fantasmas})")
     print("="*50 + "\n")
 
 if __name__ == '__main__':

@@ -62,7 +62,6 @@ def enviar_documento_dux(datos_venta):
     condicion_pago = datos_venta.get('condicion_pago') 
     metodo_pago = datos_venta.get('metodo_pago') 
     
-    # Extraemos las observaciones de React
     observaciones_venta = datos_venta.get('observaciones', '').strip()
 
     cliente = datos_venta.get('cliente', {})
@@ -70,6 +69,10 @@ def enviar_documento_dux(datos_venta):
     
     total_final = round(float(datos_venta.get('total_final', 0)), 2)
     fecha_actual = datetime.now().strftime('%Y-%m-%d')
+    
+    # Nuevas variables extraídas desde React para el Pago Mixto
+    monto_efectivo = round(float(datos_venta.get('monto_efectivo', 0)), 2)
+    monto_tarjeta = round(float(datos_venta.get('monto_tarjeta', 0)), 2)
 
     endpoints = {
         'presupuesto': f"{BASE_URL}/presupuestos",
@@ -107,7 +110,6 @@ def enviar_documento_dux(datos_venta):
         "descuento_global": float(descuento_global)
     }
 
-    # --- INYECCIÓN DEL CAMPO OBSERVACIONES ---
     if observaciones_venta:
         payload["observaciones"] = observaciones_venta
 
@@ -139,26 +141,56 @@ def enviar_documento_dux(datos_venta):
             payload["tipo_comp"] = "COMPROBANTE_VENTA"
             payload["letra_comp"] = "X"
 
+    # ==========================================
+    # LÓGICA DE COBRO (INCLUYENDO PAGO MIXTO)
+    # ==========================================
     if tipo in ['comprobante_venta', 'factura'] and condicion_pago == 'CONTADO' and metodo_pago:
-        detalle_cobro = {
-            "tipo_valor": metodo_pago,
-            "monto": total_final
-        }
+        detalles_de_cobro = []
         
-        if metodo_pago == "TARJETA":
-            detalle_cobro["id_tarjeta"] = 15233
-            detalle_cobro["id_plan_tarjeta"] = 1
-            detalle_cobro["id_terminal"] = 6050
-            detalle_cobro["nro_cupon"] = "000000"
-            detalle_cobro["nro_lote"] = "000"
+        if metodo_pago == "EFECTIVO":
+            detalles_de_cobro.append({
+                "tipo_valor": "EFECTIVO",
+                "monto": total_final
+            })
             
+        elif metodo_pago == "TARJETA":
+            detalles_de_cobro.append({
+                "tipo_valor": "TARJETA",
+                "monto": total_final,
+                "id_tarjeta": 15233,
+                "id_plan_tarjeta": 1,
+                "id_terminal": 6050,
+                "nro_cupon": "000000",
+                "nro_lote": "000"
+            })
+            
+        elif metodo_pago == "MIXTO":
+            # Si hay una parte en efectivo, armamos su detalle contable
+            if monto_efectivo > 0:
+                detalles_de_cobro.append({
+                    "tipo_valor": "EFECTIVO",
+                    "monto": monto_efectivo
+                })
+            # Si hay una parte en tarjeta, armamos su detalle contable
+            if monto_tarjeta > 0:
+                detalles_de_cobro.append({
+                    "tipo_valor": "TARJETA",
+                    "monto": monto_tarjeta,
+                    "id_tarjeta": 15233,
+                    "id_plan_tarjeta": 1,
+                    "id_terminal": 6050,
+                    "nro_cupon": "000000",
+                    "nro_lote": "000"
+                })
+        
+        # Inyectamos todos los detalles armados en la cuenta final de DUX
         payload["cobro"] = {
             "fecha_cobro": fecha_actual,
             "total": total_final,
             "id_caja": 19990,
             "id_moneda": 1,
             "cotiza_moneda": 1.0,
-            "detalle": [detalle_cobro] 
+            "detalle": detalles_de_cobro 
         }
 
     try:
